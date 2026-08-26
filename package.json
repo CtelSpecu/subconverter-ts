@@ -1,0 +1,30 @@
+{
+  "name": "subconverter-worker",
+  "version": "0.9.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "spark-md5": "^3.0.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250821.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.7.4",
+    "@types/spark-md5": "^3.0.5",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.6.3",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.126.0"
+  }
+}
