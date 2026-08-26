@@ -1,0 +1,12 @@
+name = "subconverter-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+API_MODE = "true"
+API_TOKEN = ""
+DEFAULT_URL = ""
+
+[observability]
+enabled = true
