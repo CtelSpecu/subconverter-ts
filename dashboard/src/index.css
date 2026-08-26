@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Scandinavian neutral — light only, per spec_ui §3.2 */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 240 5% 11%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 44%;
+    --accent: 0 0% 95%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 0%;
+    --radius: 8px;
+
+    /* alpha-black tokens as CSS vars for direct use */
+    --alpha-5: rgb(0 0 0 / 5%);
+    --alpha-9: rgb(0 0 0 / 9%);
+    --alpha-10: rgb(0 0 0 / 10%);
+    --alpha-18: rgb(0 0 0 / 18%);
+    --alpha-44: rgb(0 0 0 / 44%);
+    --alpha-64: rgb(0 0 0 / 64%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    font-family: Geist, Inter Variable, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  /* prefers-reduced-motion — collapse motion to instant per spec_ui §4.2 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Utility: hairline divider */
+@layer utilities {
+  .hairline {
+    border-color: rgb(0 0 0 / 10%);
+  }
+}

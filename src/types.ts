@@ -202,3 +202,46 @@ export interface Settings {
   streamRules: RegexMatchConfig[];
   timeRules: RegexMatchConfig[];
 }
+export interface AllowlistEntry {
+  domain: string;
+  remark?: string;
+  addedAt?: number;
+}
+
+export interface AclEntry {
+  value: string;
+  remark?: string;
+  addedAt?: number;
+}
+
+export interface Limits {
+  perIp: { rpm: number; burst: number };
+  perDomain: { concurrency: number; timeout: number };
+  global: { rps: number };
+}
+
+export interface LogEntry {
+  time: number;
+  ip: string;
+  target: string;
+  status: number;
+  duration?: number;
+  url?: string;
+  remark?: string;
+}
+
+export interface CacheStats {
+  hitRate: number | null;
+  entries: number;
+  rulesets: number;
+}
+
+export interface DashboardEnvBindings {
+  DASHBOARD_TOKEN?: string;
+  FRONTEND_ALLOWLIST?: string;
+  MANAGED_PREFIX?: string;
+  ADMIN?: KVNamespace;
+  CACHE?: KVNamespace;
+  DB_LOGS?: D1Database;
+  ASSETS?: Fetcher;
+}

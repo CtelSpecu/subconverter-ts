@@ -2,6 +2,26 @@ import { webGet, flushCache } from './handler/webget.js';
 import { buildSettings, loadExternalConfig } from './handler/settings.js';
 import type { Env } from './handler/settings.js';
 import type { Proxy, Settings } from './types.js';
+import {
+  checkAllowlist,
+  requireAuth,
+  handleAuth,
+  handleDomainsGet,
+  handleDomainsPost,
+  handleDomainsDelete,
+  handleAcl,
+  handleLimitsGet,
+  handleLimitsPut,
+  handleLogsGet,
+  handleLogsRetentionPost,
+  handleCacheGet,
+  handleCacheFlush,
+  handleCacheRefresh,
+  handleConfigGet,
+  handleDebugPost,
+  scheduledPurge,
+} from './handler/dashboard.js';
+import type { DashboardEnv } from './handler/dashboard.js';
 import { explodeSub } from './parser/subparser.js';
 import {
   proxyToClash,
@@ -415,22 +435,131 @@ export default {
       const pathname = url.pathname;
       const method = request.method.toUpperCase();
       const baseCors = corsHeaders(request);
+      const dashEnv = env as unknown as DashboardEnv;
 
-      // CORS preflight
+      // CORS preflight — include allowlist headers where applicable
       if (method === 'OPTIONS') {
         const h: Record<string, string> = { ...baseCors };
-        // Determine allowed methods per path
-        let allow = 'GET, POST, HEAD, OPTIONS';
+        // Dashboard API needs allowlist-aware CORS
+        if (pathname.startsWith('/dashboard/api/')) {
+          const al = checkAllowlist(request, dashEnv);
+          if (!al.allowed) {
+            // preflight blocked: return 403 no ACAO
+            return new Response('Forbidden', { status: 403 });
+          }
+          Object.assign(h, al.headers);
+        } else if (pathname === '/sub' || pathname === '/sub2clashr' || pathname === '/surge2clash' || pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
+          const al = checkAllowlist(request, dashEnv);
+          if (!al.allowed) {
+            return new Response('Forbidden', { status: 403 });
+          }
+          Object.assign(h, al.headers);
+        }
+        let allow = 'GET, POST, HEAD, OPTIONS, PUT, DELETE';
         if (pathname === '/sub' || pathname === '/sub2clashr' || pathname === '/surge2clash') allow = 'GET, HEAD, OPTIONS';
         else if (pathname === '/' || pathname === '/version') allow = 'GET, OPTIONS';
         else if (pathname === '/refreshrules' || pathname === '/readconf' || pathname === '/flushcache' || pathname === '/render') allow = 'GET, OPTIONS';
         else if (pathname === '/updateconf') allow = 'POST, OPTIONS';
+        else if (pathname.startsWith('/dashboard/api/')) allow = 'GET, POST, PUT, DELETE, OPTIONS';
         h['Access-Control-Allow-Methods'] = allow;
         h['Access-Control-Allow-Headers'] = request.headers.get('Access-Control-Request-Headers') || 'Content-Type,Authorization';
         return new Response('', { status: 200, headers: h });
       }
 
-      // Health
+      // Dashboard API routing — must run before other routes, with allowlist then auth (except /auth)
+      if (pathname.startsWith('/dashboard/api/')) {
+        const al = checkAllowlist(request, dashEnv);
+        if (!al.allowed) {
+          return al.response ?? new Response(JSON.stringify({ error: 'blocked_by_allowlist' }), { status: 403, headers: { 'Content-Type': 'application/json;charset=utf-8' } });
+        }
+        const isAuth = pathname === '/dashboard/api/auth';
+        if (!isAuth) {
+          const authFail = requireAuth(request, dashEnv);
+          if (authFail) {
+            // merge allowlist headers into 401
+            for (const [k, v] of Object.entries(al.headers)) authFail.headers.set(k, v);
+            return authFail;
+          }
+        }
+        // route handlers
+        const dashHeaders = al.headers;
+        const withDash = (resp: Response): Response => {
+          for (const [k, v] of Object.entries(dashHeaders)) resp.headers.set(k, v);
+          return resp;
+        };
+        try {
+          if (pathname === '/dashboard/api/auth' && method === 'POST') {
+            const r = await handleAuth(request, dashEnv);
+            return withDash(r);
+          }
+          if (pathname === '/dashboard/api/domains') {
+            if (method === 'GET') return withDash(await handleDomainsGet(request, dashEnv));
+            if (method === 'POST') return withDash(await handleDomainsPost(request, dashEnv));
+          }
+          if (pathname.startsWith('/dashboard/api/domains/') && method === 'DELETE') {
+            return withDash(await handleDomainsDelete(request, dashEnv));
+          }
+          if (pathname.startsWith('/dashboard/api/acl')) {
+            return withDash(await handleAcl(request, dashEnv));
+          }
+          if (pathname === '/dashboard/api/limits') {
+            if (method === 'GET') return withDash(await handleLimitsGet(request, dashEnv));
+            if (method === 'PUT' || method === 'POST') return withDash(await handleLimitsPut(request, dashEnv));
+          }
+          if (pathname === '/dashboard/api/logs' && method === 'GET') {
+            return withDash(await handleLogsGet(request, dashEnv));
+          }
+          if (pathname === '/dashboard/api/logs/retention' && method === 'POST') {
+            return withDash(await handleLogsRetentionPost(request, dashEnv));
+          }
+          if (pathname === '/dashboard/api/cache') {
+            if (method === 'GET') return withDash(await handleCacheGet(request, dashEnv));
+          }
+          if (pathname === '/dashboard/api/cache/flush' && method === 'POST') {
+            return withDash(await handleCacheFlush(request, dashEnv));
+          }
+          if (pathname === '/dashboard/api/cache/refresh' && method === 'POST') {
+            return withDash(await handleCacheRefresh(request, dashEnv));
+          }
+          // legacy: POST /dashboard/api/cache with {action}
+          if (pathname === '/dashboard/api/cache' && method === 'POST') {
+            try {
+              const b = await request.json().catch(() => ({})) as Record<string, unknown>;
+              const act = String((b as Record<string,unknown>).action ?? '').toLowerCase();
+              if (act === 'flush' || (b as Record<string,unknown>).flush) return withDash(await handleCacheFlush(request, dashEnv));
+              if (act === 'refresh') return withDash(await handleCacheRefresh(request, dashEnv));
+            } catch {}
+            return withDash(new Response(JSON.stringify({ error: 'invalid action' }), { status: 400, headers: { 'Content-Type': 'application/json;charset=utf-8' } }));
+          }
+          if (pathname === '/dashboard/api/config' && method === 'GET') {
+            return withDash(await handleConfigGet(request, dashEnv));
+          }
+          if (pathname === '/dashboard/api/debug' && method === 'POST') {
+            return withDash(await handleDebugPost(request, dashEnv));
+          }
+          return withDash(new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { 'Content-Type': 'application/json;charset=utf-8' } }));
+        } catch {
+          return withDash(new Response(JSON.stringify({ error: 'internal' }), { status: 500, headers: { 'Content-Type': 'application/json;charset=utf-8' } }));
+        }
+      }
+
+      if ((pathname === '/dashboard' || pathname.startsWith('/dashboard/')) && !pathname.startsWith('/dashboard/api/')) {
+        const al = checkAllowlist(request, dashEnv);
+        if (!al.allowed) {
+          return al.response ?? new Response('Forbidden', { status: 403 });
+        }
+        try {
+          const assets = (dashEnv as unknown as Record<string, unknown>).ASSETS as { fetch: (req: Request) => Promise<Response> } | undefined;
+          if (assets) {
+            const res = await assets.fetch(request);
+            if (res && res.status !== 404) return res;
+            const indexReq = new Request(new URL('/index.html', request.url).toString(), request);
+            const indexRes = await assets.fetch(indexReq).catch(() => null);
+            if (indexRes) return indexRes;
+          }
+        } catch {}
+      }
+
       if (pathname === '/' && method === 'GET') {
         return new Response('', { status: 200, headers: baseCors });
       }
@@ -487,6 +616,17 @@ export default {
         return new Response('Not Found', { status: 404, headers: h });
       }
 
+      // Allowlist in front of converter routes (spec 6.2) — empty -> allow with ACAO *
+      const isSubLike = pathname === '/sub' || pathname === '/sub2clashr' || pathname === '/surge2clash';
+      if (isSubLike) {
+        const al2 = checkAllowlist(request, dashEnv);
+        if (!al2.allowed) {
+          return al2.response ?? new Response(JSON.stringify({ error: 'blocked_by_allowlist' }), { status: 403, headers: { 'Content-Type': 'application/json;charset=utf-8' } });
+        }
+        // merge allowlist headers into baseCors for downstream
+        Object.assign(baseCors, al2.headers);
+      }
+
       // Aliases 302
       const settingsForAlias = buildSettings(env);
       if (settingsForAlias.aliases && settingsForAlias.aliases[pathname]) {
@@ -530,6 +670,8 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, _env: Env, _ctx: ExecutionContext): Promise<void> {
-    // no-op for MVP
+    try {
+      await scheduledPurge(_env as unknown as DashboardEnv);
+    } catch {}
   },
 };

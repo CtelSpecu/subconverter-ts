@@ -1,0 +1,282 @@
+import { useState } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+
+const TARGETS = [
+  "clash",
+  "clashr",
+  "surge",
+  "quan",
+  "quanx",
+  "loon",
+  "surfboard",
+  "mellow",
+  "ss",
+  "ssr",
+  "v2ray",
+  "trojan",
+  "mixed",
+  "ssd",
+  "singbox",
+  "sssub",
+] as const;
+
+const REMOTE_CONFIGS = [
+  { value: "", label: "Default (no remote config)" },
+  { value: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online.ini", label: "ACL4SSR — Online" },
+  { value: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Mini.ini", label: "ACL4SSR — Mini" },
+  { value: "custom", label: "Custom URL…" },
+] as const;
+
+export default function GeneratePage() {
+  const [source, setSource] = useState("");
+  const [target, setTarget] = useState<(typeof TARGETS)[number]>("clash");
+  const [config, setConfig] = useState("");
+  const [customConfig, setCustomConfig] = useState("");
+  const [include, setInclude] = useState("");
+  const [exclude, setExclude] = useState("");
+  const [filename, setFilename] = useState("");
+  const [customParams, setCustomParams] = useState("");
+  const [emoji, setEmoji] = useState(false);
+  const [scv, setScv] = useState(false);
+  const [udp, setUdp] = useState(false);
+  const [appendType, setAppendType] = useState(false);
+  const [sort, setSort] = useState(false);
+  const [fdn, setFdn] = useState(false);
+  const [expand, setExpand] = useState(false);
+  const [output, setOutput] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [showCustomConfig, setShowCustomConfig] = useState(false);
+
+  function handleGenerate() {
+    const base = window.location.origin;
+    const params = new URLSearchParams();
+
+    const urls = source
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join("|");
+    if (urls) params.set("url", urls);
+    params.set("target", target);
+
+    const effectiveConfig = config === "custom" ? customConfig.trim() : config.trim();
+    if (effectiveConfig) params.set("config", effectiveConfig);
+
+    if (include.trim()) params.set("include", include.trim());
+    if (exclude.trim()) params.set("exclude", exclude.trim());
+    if (filename.trim()) params.set("filename", filename.trim());
+
+    if (emoji) params.set("emoji", "true");
+    if (scv) params.set("skip_cert_verify", "true");
+    if (udp) params.set("udp", "true");
+    if (appendType) params.set("append_type", "true");
+    if (sort) params.set("sort", "true");
+    if (fdn) params.set("filter_deprecated", "true");
+    if (expand) params.set("expand", "true");
+
+    if (customParams.trim()) {
+      const extra = customParams.trim().replace(/^\?/, "").replace(/^&/, "");
+      for (const pair of extra.split("&")) {
+        if (!pair) continue;
+        const [k, v] = pair.split("=");
+        if (!k) continue;
+        const key = k.trim();
+        const val = v !== undefined ? decodeURIComponent(v.trim()) : "";
+        if (key && !params.has(key)) params.set(key, val);
+      }
+    }
+
+    const link = `${base}/sub?${params.toString()}`;
+    setOutput(link);
+  }
+
+  async function handleCopy() {
+    if (!output) return;
+    await navigator.clipboard.writeText(output);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  function handleConfigChange(v: string) {
+    setConfig(v);
+    setShowCustomConfig(v === "custom");
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-lg font-semibold tracking-tight">Generate</h1>
+        <p className="text-sm text-[rgb(0_0_0/44%)]">Build subscription links. Local generation — no short link service.</p>
+      </div>
+
+      {/* Source */}
+      <Card className="rounded-[8px] border shadow-none">
+        <CardHeader>
+          <CardTitle>Source</CardTitle>
+          <CardDescription>Subscription links, one per line. Remote config selects server-side presets.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="source">Subscription URL</Label>
+            <Textarea
+              id="source"
+              placeholder={"https://example.com/sub1\nhttps://example.com/sub2"}
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              className="rounded-[8px] font-mono text-xs"
+            />
+            <p className="text-xs text-[rgb(0_0_0/44%)]">Multiple URLs separated by newline or pipe. Supports data: and tag: prefixes.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="remote-config">Remote config</Label>
+            <Select
+              id="remote-config"
+              value={config}
+              onChange={(e) => handleConfigChange(e.target.value)}
+              aria-label="Remote config"
+            >
+              {REMOTE_CONFIGS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </Select>
+            {showCustomConfig ? (
+              <Input
+                placeholder="https://example.com/my.ini"
+                value={customConfig}
+                onChange={(e) => setCustomConfig(e.target.value)}
+                className="rounded-[8px] font-mono text-xs"
+              />
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Target */}
+      <Card className="rounded-[8px] border shadow-none">
+        <CardHeader>
+          <CardTitle>Target</CardTitle>
+          <CardDescription>Choose output format. Advanced options are collapsed by default.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="target">Target client</Label>
+            <Select
+              id="target"
+              value={target}
+              onChange={(e) => setTarget(e.target.value as typeof target)}
+              aria-label="Target client"
+            >
+              {TARGETS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-[rgb(0_0_0/44%)]">13+ formats: clash / surge / quanx / loon / surfboard / mixed / sssub / ss / ssd / singbox and more.</p>
+          </div>
+
+          <Collapsible defaultOpen={false} className="rounded-[8px]">
+            <CollapsibleTrigger>Advanced</CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="include" className="text-xs font-medium text-[rgb(0_0_0/64%)]">Include (RegExp)</Label>
+                  <Input id="include" placeholder="HK|JP" value={include} onChange={(e) => setInclude(e.target.value)} className="rounded-[8px]" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="exclude" className="text-xs font-medium text-[rgb(0_0_0/64%)]">Exclude (RegExp)</Label>
+                  <Input id="exclude" placeholder="x1|expired" value={exclude} onChange={(e) => setExclude(e.target.value)} className="rounded-[8px]" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="filename" className="text-xs font-medium text-[rgb(0_0_0/64%)]">Filename</Label>
+                  <Input id="filename" placeholder="profile" value={filename} onChange={(e) => setFilename(e.target.value)} className="rounded-[8px]" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="custom-params" className="text-xs font-medium text-[rgb(0_0_0/64%)]">Custom params</Label>
+                  <Input
+                    id="custom-params"
+                    placeholder="rename=Group&interval=86400"
+                    value={customParams}
+                    onChange={(e) => setCustomParams(e.target.value)}
+                    className="rounded-[8px] font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={emoji} onChange={(e) => setEmoji(e.target.checked)} />
+                  Emoji
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={scv} onChange={(e) => setScv(e.target.checked)} />
+                  SCV
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={udp} onChange={(e) => setUdp(e.target.checked)} />
+                  UDP
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={appendType} onChange={(e) => setAppendType(e.target.checked)} />
+                  Append type
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={sort} onChange={(e) => setSort(e.target.checked)} />
+                  Sort
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={fdn} onChange={(e) => setFdn(e.target.checked)} />
+                  FDN
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={expand} onChange={(e) => setExpand(e.target.checked)} />
+                  Expand
+                </label>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-[rgb(0_0_0/44%)]">
+                SCV — skip cert verify · FDN — filter deprecated nodes · Expand — expand ruleset.
+              </p>
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Button onClick={handleGenerate} className="rounded-[8px] bg-zinc-900 text-white hover:bg-zinc-800">
+            Generate link
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Output */}
+      <Card className="rounded-[8px] border shadow-none">
+        <CardHeader>
+          <CardTitle>Output</CardTitle>
+          <CardDescription>Backend address is read-only. Copy the generated link.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input readOnly value={output} placeholder="Generate to see link" className="rounded-[8px] font-mono text-xs" />
+            <Button variant="outline" onClick={handleCopy} disabled={!output} className="shrink-0 rounded-[8px]">
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          </div>
+          {output ? (
+            <Collapsible defaultOpen={false} className="rounded-[8px]">
+              <CollapsibleTrigger>Preview</CollapsibleTrigger>
+              <CollapsibleContent>
+                <p className="break-all font-mono text-xs leading-relaxed text-[rgb(0_0_0/64%)]">{output}</p>
+              </CollapsibleContent>
+            </Collapsible>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
