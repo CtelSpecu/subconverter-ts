@@ -1,0 +1,2 @@
+hy2://password@8.8.8.8:443#Hy2-Test?insecure=1&sni=example.com
+hysteria2://password@8.8.8.9:443#Hysteria2-Test?insecure=1&up=10Mbps&down=20Mbps

@@ -1,0 +1,1 @@
+anytls://password@9.9.9.9:443#AnyTLS-Test?sni=example.com&insecure=1

@@ -193,24 +193,25 @@ async function handleSub(requestUrl: URL, env: Env, request: Request): Promise<{
     const fetchUrl = extractFetchUrl(rawUrl);
     if (!fetchUrl || fetchUrl === 'nullnode') return;
     fetchedCount++;
+    // Direct proxy links (ss://, vmess://, etc.) should not be fetched; treat as subscription content directly
+    const isDirectProxyLink = /^(ssr|vmess|ss|trojan|hy2|hysteria2|anytls|socks|tg|netch):\/\//i.test(fetchUrl) || fetchUrl.includes('://') && !fetchUrl.startsWith('http://') && !fetchUrl.startsWith('https://') && !fetchUrl.startsWith('data:');
     let body = '';
     let respHeaders: Record<string, string> = {};
-    try {
-      // Respect cacheSubscription TTL; use settings.cacheSubscription if enableCache else 0?
-      const ttl = settings.enableCache ? settings.cacheSubscription : 60; // for MVP keep 60 even if enableCache false so tests pass; spec says enableCache false -> 0 but webGet still caches if ttl>0. Use settings.cacheSubscription when enableCache false? Spec says enableCache=false sets TTLs to 0. Keep 0 when disabled.
-      const effectiveTtl = settings.enableCache ? settings.cacheSubscription : 0;
-      // For data: URIs, ttl irrelevant
-      const res = await webGet(fetchUrl, fetchUrl.startsWith('data:') ? 0 : effectiveTtl);
-      body = res.body;
-      respHeaders = res.headers;
-    } catch {
-      body = '';
-    }
-
-    if (!body) {
-      if (settings.skipFailedLinks) return;
-      // per spec, Unknown nodes are silently dropped; empty body just yields no nodes but overall still 200
-      return;
+    if (isDirectProxyLink) {
+      body = fetchUrl;
+    } else {
+      try {
+        const effectiveTtl = settings.enableCache ? settings.cacheSubscription : 0;
+        const res = await webGet(fetchUrl, fetchUrl.startsWith('data:') ? 0 : effectiveTtl);
+        body = res.body;
+        respHeaders = res.headers;
+      } catch {
+        body = '';
+      }
+      if (!body) {
+        if (settings.skipFailedLinks) return;
+        return;
+      }
     }
 
     // Extract Subscription-Userinfo from headers if present (case-insensitive)

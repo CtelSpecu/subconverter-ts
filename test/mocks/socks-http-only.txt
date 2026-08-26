@@ -1,0 +1,4 @@
+socks://9.9.9.10:1080#Socks-Test
+socks://dXNlcjpwYXNz@9.9.9.11:1080#Socks-User
+tg://http?server=10.0.0.1&port=8080&remark=Http-Test
+https://t.me/http?server=10.0.0.2&port=8443&remark=Https-Test
