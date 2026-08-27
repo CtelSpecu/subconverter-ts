@@ -595,7 +595,6 @@ export default {
           return withDash(new Response(JSON.stringify({ error: 'internal' }), { status: 500, headers: { 'Content-Type': 'application/json;charset=utf-8' } }));
         }
       }
-
       if ((pathname === '/dashboard' || pathname.startsWith('/dashboard/')) && !pathname.startsWith('/dashboard/api/')) {
         const al = checkAllowlist(request, dashEnv);
         if (!al.allowed) {
@@ -611,6 +610,17 @@ export default {
             if (indexRes) return indexRes;
           }
         } catch {}
+      }
+
+      if (pathname.startsWith('/assets/')) {
+        try {
+          const assets = (dashEnv as unknown as Record<string, unknown>).ASSETS as { fetch: (req: Request) => Promise<Response> } | undefined;
+          if (assets) {
+            const res = await assets.fetch(request);
+            if (res) return res;
+          }
+        } catch {}
+        return new Response('Not Found', { status: 404, headers: baseCors });
       }
 
       if (pathname === '/' && method === 'GET') {
