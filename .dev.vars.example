@@ -1,7 +1,12 @@
-# — Worker 基础 —
-API_MODE=true
-API_TOKEN=
-DEFAULT_URL=
-MANAGED_PREFIX=http://127.0.0.1:25500
-# RETENTION_DAYS=180
-FRONTEND_ALLOWLIST=
+# — Worker 基础（见 src/handler/settings.ts:buildSettings） —
+API_MODE=true          # true=鉴权（/sub 需 token，/dashboard 需 Bearer），false=开放（危险）
+API_TOKEN=             # 管理密钥，空即不校验；生产用 wrangler secret put API_TOKEN
+DEFAULT_URL=           # 无 url 时的默认订阅（| 分隔，支持 tag:）
+MANAGED_PREFIX=http://127.0.0.1:25500  # 生成的订阅前置域名（面板 Domains 页展示）
+# RETENTION_DAYS=180   # 日志保留天数（面板 Logs 可选 7/30/90/180/365，空=180）
+
+# — 前端域名白名单（逗号分隔，空即放行 *，非空严格 403）—
+FRONTEND_ALLOWLIST=    # 例: https://sub.example.com,https://dashboard.example.com
+
+# — Dashboard 鉴权（单密钥，必填否则面板 401）—
+DASHBOARD_TOKEN=change-me-to-strong-random-32+chars  # 生产用 wrangler secret put DASHBOARD_TOKEN
