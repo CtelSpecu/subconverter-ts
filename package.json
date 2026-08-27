@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "build": "npm --prefix dashboard run build && tsc --noEmit",
+    "build": "npm --prefix dashboard install --silent && npm --prefix dashboard run build && tsc --noEmit",
     "deploy": "wrangler deploy",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",

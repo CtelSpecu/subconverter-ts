@@ -18,7 +18,7 @@ enabled = true
 directory = "./assets/dashboard"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-
+run_worker_first = true
 [[kv_namespaces]]
 binding = "ADMIN"
 id = "f1bb7670b39046ddb3b5c2e01625624e"
