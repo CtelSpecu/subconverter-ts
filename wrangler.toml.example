@@ -1,0 +1,36 @@
+name = "subconverter-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "sub.example.com/*", zone_name = "example.com" },
+  { pattern = "dashboard.example.com/*", zone_name = "example.com" }
+]
+[vars]
+API_MODE = "true"
+API_TOKEN = ""
+DEFAULT_URL = ""
+MANAGED_PREFIX = "https://sub.example.com"
+FRONTEND_ALLOWLIST = "https://sub.example.com,https://dashboard.example.com"
+
+[observability]
+enabled = true
+
+[assets]
+directory = "./assets/dashboard"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[kv_namespaces]]
+binding = "ADMIN"
+id = "REPLACE_WITH_KV_ADMIN_ID"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_KV_CACHE_ID"
+
+[[d1_databases]]
+binding = "DB_LOGS"
+database_name = "subconverter-logs"
+database_id = "REPLACE_WITH_D1_ID"

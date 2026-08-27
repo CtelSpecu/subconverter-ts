@@ -477,6 +477,9 @@ export default {
         if (isSub && (pathname === '/dashboard' || pathname.startsWith('/dashboard/'))) {
           return new Response('closed', { status: 403, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         }
+        if (isSub && pathname === '/') {
+          return new Response('closed', { status: 403, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+        }
         if (isScd && pathname === '/') {
           return Response.redirect(new URL('/dashboard/', request.url).toString(), 302);
         }
