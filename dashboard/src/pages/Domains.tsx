@@ -79,7 +79,7 @@ export default function DomainsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">Domains</h1>
+          <h1 className="text-lg font-semibold tracking-tight">域名管理</h1>
           <p className="text-sm text-[rgb(0_0_0/44%)]">前端白名单与管理前缀，真实 KV 数据。</p>
         </div>
         <Button onClick={()=>setAddOpen(true)} className="rounded-[8px]">添加域名</Button>
@@ -107,7 +107,7 @@ export default function DomainsPage() {
           {loading ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
           allowlist.length===0 ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">暂无域名，添加后将限制。</div> :
           <Table>
-            <TableHeader><TableRow><TableHead>Domain</TableHead><TableHead>Remark</TableHead><TableHead>Added</TableHead><TableHead className="w-[80px]"></TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>域名</TableHead><TableHead>备注</TableHead><TableHead>添加时间</TableHead><TableHead className="w-[80px]"></TableHead></TableRow></TableHeader>
             <TableBody>
               {allowlist.map(e=>(
                 <TableRow key={e.domain}>
@@ -128,7 +128,7 @@ export default function DomainsPage() {
             <DialogHeader><DialogTitle>添加域名</DialogTitle><DialogDescription>域名将写入 KV 白名单。</DialogDescription></DialogHeader>
             <div className="mt-4 space-y-3">
               <Input placeholder="sub.ctelspecu.hxcn.top" value={domainInput} onChange={e=>setDomainInput(e.target.value)} className="rounded-[8px] font-mono text-xs" />
-              <Input placeholder="remark (optional)" value={remarkInput} onChange={e=>setRemarkInput(e.target.value)} className="rounded-[8px] text-xs" />
+              <Input placeholder="备注（可选）" value={remarkInput} onChange={e=>setRemarkInput(e.target.value)} className="rounded-[8px] text-xs" />
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={confirmChecked} onChange={e=>setConfirmChecked(e.target.checked)} /> I confirm</label>
             </div>
             <DialogFooter><Button variant="outline" onClick={()=>setAddOpen(false)} className="rounded-[8px]">取消</Button><Button onClick={handleAdd} disabled={!domainInput.trim()||!confirmChecked} className="rounded-[8px]">添加</Button></DialogFooter>

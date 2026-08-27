@@ -235,8 +235,31 @@ export async function handleAcl(request: Request, env: DashboardEnv): Promise<Re
   }
 
   if (method === 'GET') {
-    const key = `acl:${type}`;
-    const entries = await kvGetJson<unknown[]>(kv, key, []);
+    const listParam = (searchParams.get('list') || '').toLowerCase();
+    const list = listParam === 'white' ? 'white' : listParam === 'black' ? 'black' : '';
+    const getEntries = async (l: string) => {
+      const k = `acl:${l}:${type}`;
+      const legacy = `acl:${type}`;
+      let e = await kvGetJson<unknown[]>(kv, k, []);
+      if (!Array.isArray(e)) e = [];
+      if (e.length === 0) {
+        const legacyEntries = await kvGetJson<unknown[]>(kv, legacy, []);
+        if (Array.isArray(legacyEntries) && legacyEntries.length > 0 && l === 'black') e = legacyEntries;
+      }
+      return Array.isArray(e) ? e : [];
+    };
+    if (list) {
+      const entries = await getEntries(list);
+      const blackEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.black, false);
+      const whiteEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.white, false);
+      const enabledParam = searchParams.get('enabled');
+      if (enabledParam === 'black' || enabledParam === 'white') {
+        const v = enabledParam === 'black' ? blackEnabled : whiteEnabled;
+        return json({ enabled: v });
+      }
+      return json({ type, list, entries, blackEnabled, whiteEnabled });
+    }
+    const entries = await getEntries('black');
     const blackEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.black, false);
     const whiteEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.white, false);
     const enabledParam = searchParams.get('enabled');
@@ -270,31 +293,40 @@ export async function handleAcl(request: Request, env: DashboardEnv): Promise<Re
 
       if (!type) return json({ error: 'type required' }, 400);
 
-      // handle entries update: body.entries or single entry
-      const key = `acl:${type}`;
+      // handle entries update: body.entries or single entry, with optional list param (black/white)
+      const listParam = String((body as Record<string, unknown>).list ?? searchParams.get('list') ?? 'black').toLowerCase();
+      const list = listParam === 'white' ? 'white' : 'black';
+      const key = `acl:${list}:${type}`;
+      const legacyKey = `acl:${type}`;
       let entries = await kvGetJson<unknown[]>(kv, key, []);
       if (!Array.isArray(entries)) entries = [];
+      if (entries.length === 0 && list === 'black') {
+        const legacyEntries = await kvGetJson<unknown[]>(kv, legacyKey, []);
+        if (Array.isArray(legacyEntries) && legacyEntries.length > 0) entries = legacyEntries;
+      }
 
       if (Array.isArray(body.entries)) {
         await kvPutJson(kv, key, body.entries);
-        return json({ ok: true, type, count: body.entries.length });
+        if (list === 'black') await kvPutJson(kv, legacyKey, body.entries).catch(()=>{});
+        return json({ ok: true, type, list, count: body.entries.length });
       }
       if (body.value !== undefined || body.entry !== undefined) {
         const val = (body.value ?? body.entry) as string;
         if (!val || typeof val !== 'string') return json({ error: 'value required' }, 400);
         const normalized = String(val).trim();
         if (!normalized) return json({ error: 'value required' }, 400);
-        // action: add or remove?
         const action = String(body.action ?? 'add').toLowerCase();
         if (action === 'remove' || action === 'delete') {
           const next = (entries as string[]).filter((e) => String(e) !== normalized);
           await kvPutJson(kv, key, next);
-          return json({ ok: true, type, count: next.length });
+          if (list === 'black') await kvPutJson(kv, legacyKey, next).catch(()=>{});
+          return json({ ok: true, type, list, count: next.length });
         } else {
           if ((entries as string[]).includes(normalized)) return json({ error: 'already exists' }, 409);
           entries.push(normalized);
           await kvPutJson(kv, key, entries);
-          return json({ ok: true, type, count: entries.length });
+          if (list === 'black') await kvPutJson(kv, legacyKey, entries).catch(()=>{});
+          return json({ ok: true, type, list, count: entries.length });
         }
       }
 
@@ -338,7 +370,26 @@ const DEFAULT_LIMITS = {
 export async function handleLimitsGet(_request: Request, env: DashboardEnv): Promise<Response> {
   const kv = getKvAdmin(env);
   const limits = await kvGetJson<typeof DEFAULT_LIMITS>(kv, 'limits', DEFAULT_LIMITS);
-  return json({ limits: limits ?? DEFAULT_LIMITS });
+  let chart: Array<{ t: string; v: number }> = [];
+  try {
+    const d1 = getD1(env);
+    if (d1) {
+      const now = Date.now();
+      const dayAgo = now - 24 * 3600 * 1000;
+      const res = await d1.prepare('SELECT CAST((time / 3600000) AS INTEGER) * 3600000 AS hour, COUNT(*) AS c FROM logs WHERE time >= ? GROUP BY hour ORDER BY hour').bind(dayAgo).all();
+      const results = (res as unknown as { results: Array<{ hour: number; c: number }> }).results ?? [];
+      const map = new Map<number, number>();
+      for (const r of results) map.set(Number(r.hour), Number(r.c));
+      for (let i = 23; i >= 0; i--) {
+        const hourTs = Math.floor((now - i * 3600000) / 3600000) * 3600000;
+        const d = new Date(hourTs);
+        const label = `${String(d.getHours()).padStart(2, '0')}:00`;
+        chart.push({ t: label, v: map.get(hourTs) ?? 0 });
+      }
+    }
+  } catch {}
+  if (chart.length === 0) chart = Array.from({ length: 7 }, (_, i) => ({ t: `${String(i * 4).padStart(2, '0')}:00`, v: 0 }));
+  return json({ limits: limits ?? DEFAULT_LIMITS, chart });
 }
 
 export async function handleLimitsPut(request: Request, env: DashboardEnv): Promise<Response> {

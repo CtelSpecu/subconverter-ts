@@ -61,7 +61,7 @@ export default function CachePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight">Cache</h1>
+        <h1 className="text-lg font-semibold tracking-tight">缓存</h1>
         <p className="text-sm text-[rgb(0_0_0/44%)]">内存 + KV 统计，来自真实接口。</p>
       </div>
 

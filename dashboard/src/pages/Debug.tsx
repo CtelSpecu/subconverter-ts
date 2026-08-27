@@ -61,7 +61,7 @@ export default function DebugPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold">Debug</h1>
+        <h1 className="text-lg font-semibold">调试</h1>
         <p className="text-sm text-[rgb(0_0_0/44%)]">单链接解析预览。</p>
       </div>
 

@@ -239,7 +239,7 @@ export default function ConfigPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold">Config</h1>
+        <h1 className="text-lg font-semibold">配置</h1>
         <p className="text-sm text-[rgb(0_0_0/44%)]">构建设置快照 — 只读，支持受控覆盖。</p>
       </div>
 

@@ -5,14 +5,14 @@ import { Input } from "@/components/ui/input";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { getToken } from "@/lib/auth";
 
-const chartData = [
-  { t: "00:00", v: 42 },
-  { t: "04:00", v: 38 },
-  { t: "08:00", v: 65 },
-  { t: "12:00", v: 58 },
-  { t: "16:00", v: 72 },
-  { t: "20:00", v: 48 },
-  { t: "24:00", v: 41 },
+const fallbackChart = [
+  { t: "00:00", v: 0 },
+  { t: "04:00", v: 0 },
+  { t: "08:00", v: 0 },
+  { t: "12:00", v: 0 },
+  { t: "16:00", v: 0 },
+  { t: "20:00", v: 0 },
+  { t: "24:00", v: 0 },
 ];
 
 const defaults = {
@@ -37,6 +37,7 @@ export default function LimitsPage() {
   const [error, setError] = useState<string|null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [chartData, setChartData] = useState(fallbackChart);
 
   async function fetchLimits() {
     setLoading(true); setError(null);
@@ -44,11 +45,12 @@ export default function LimitsPage() {
       const res = await fetch("/dashboard/api/limits", { headers: authHeaders() });
       if (res.status===401) { window.location.href="/dashboard/auth"; return; }
       if (!res.ok) throw new Error(`请求失败 ${res.status}`);
-      const data = await res.json() as { limits: { perIp:{rpm:number, burst:number}, perDomain:{concurrency:number, timeout:number}, global:{rps:number} } };
+      const data = await res.json() as { limits: { perIp:{rpm:number, burst:number}, perDomain:{concurrency:number, timeout:number}, global:{rps:number} }, chart?: Array<{t:string,v:number}> };
       const l = data.limits;
       if (l?.perIp) { if (l.perIp.rpm!=null) setPerIpRpm(Number(l.perIp.rpm)); if (l.perIp.burst!=null) setPerIpBurst(Number(l.perIp.burst)); }
       if (l?.perDomain) { if (l.perDomain.concurrency!=null) setPerDomainConcurrency(Number(l.perDomain.concurrency)); if (l.perDomain.timeout!=null) setPerDomainTimeout(Number(l.perDomain.timeout)); }
       if (l?.global?.rps!=null) setGlobalRps(Number(l.global.rps));
+      if (Array.isArray(data.chart) && data.chart.length) setChartData(data.chart);
     } catch(e:any){ setError(e?.message||"失败"); }
     finally { setLoading(false); }
   }
@@ -77,24 +79,24 @@ export default function LimitsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Limits</h1>
-        <p className="text-sm text-[rgb(0_0_0/44%)]">{loading?"Loading…":"真实 KV 限流，含全局、单 IP、单域名。"}</p>
+        <p className="text-sm text-[rgb(0_0_0/44%)]">{loading?"加载中…":"真实 KV 限流，含全局、单 IP、单域名。"}</p>
       </div>
       {error ? <div className="rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
-      {saved ? <div className="rounded-[8px] border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">Saved to KV ADMIN:limits</div> : null}
+      {saved ? <div className="rounded-[8px] border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">已保存至 KV ADMIN:limits</div> : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="rounded-[8px] border shadow-none">
-          <CardHeader><CardTitle className="text-sm">单 IP</CardTitle><CardDescription>RPM / burst</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="text-sm">单 IP</CardTitle><CardDescription>每分钟请求 / 突发</CardDescription></CardHeader>
           <CardContent className="space-y-3">
             <div><label className="text-xs">RPM</label><Input type="number" value={perIpRpm} onChange={e=>setPerIpRpm(Number(e.target.value))} className="rounded-[8px] mt-1" /></div>
-            <div><label className="text-xs">Burst</label><Input type="number" value={perIpBurst} onChange={e=>setPerIpBurst(Number(e.target.value))} className="rounded-[8px] mt-1" /></div>
+            <div><label className="text-xs">突发</label><Input type="number" value={perIpBurst} onChange={e=>setPerIpBurst(Number(e.target.value))} className="rounded-[8px] mt-1" /></div>
           </CardContent>
         </Card>
         <Card className="rounded-[8px] border shadow-none">
           <CardHeader><CardTitle className="text-sm">单域名</CardTitle><CardDescription>并发 / 超时</CardDescription></CardHeader>
           <CardContent className="space-y-3">
             <div><label className="text-xs">并发</label><Input type="number" value={perDomainConcurrency} onChange={e=>setPerDomainConcurrency(Number(e.target.value))} className="rounded-[8px] mt-1" /></div>
-            <div><label className="text-xs">Timeout ms</label><Input type="number" value={perDomainTimeout} onChange={e=>setPerDomainTimeout(Number(e.target.value))} className="rounded-[8px] mt-1" /></div>
+            <div><label className="text-xs">超时毫秒</label><Input type="number" value={perDomainTimeout} onChange={e=>setPerDomainTimeout(Number(e.target.value))} className="rounded-[8px] mt-1" /></div>
           </CardContent>
         </Card>
         <Card className="rounded-[8px] border shadow-none">
@@ -107,13 +109,13 @@ export default function LimitsPage() {
       </div>
 
       <Card className="rounded-[8px] border shadow-none">
-        <CardHeader><CardTitle className="text-sm">Raw</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">原始数据</CardTitle></CardHeader>
         <CardContent><pre className="rounded-[8px] bg-zinc-50 p-3 font-mono text-xs">{JSON.stringify({ perIp:{rpm:perIpRpm,burst:perIpBurst}, perDomain:{concurrency:perDomainConcurrency,timeout:perDomainTimeout}, global:{rps:globalRps}}, null, 2)}</pre></CardContent>
       </Card>
 
       <div className="flex items-center gap-2">
         <Button onClick={handleSave} disabled={saving} className="rounded-[8px] bg-zinc-900 text-white hover:bg-zinc-800">{saving?"保存中…":"保存"}</Button>
-        <Button variant="outline" onClick={handleReset} className="rounded-[8px]">Reset to defaults</Button>
+        <Button variant="outline" onClick={handleReset} className="rounded-[8px]">恢复默认</Button>
         <Button variant="ghost" onClick={fetchLimits} disabled={loading} className="rounded-[8px]">刷新</Button>
       </div>
     </div>

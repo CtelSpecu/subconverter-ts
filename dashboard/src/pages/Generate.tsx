@@ -132,7 +132,7 @@ export default function GeneratePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight">Generate</h1>
+        <h1 className="text-lg font-semibold tracking-tight">生成</h1>
         <p className="text-sm text-[rgb(0_0_0/44%)]">构建订阅链接，本地生成，无需短链服务。</p>
       </div>
 

@@ -25,7 +25,7 @@ type LogRow = {
 };
 
 export default function LogsPage() {
-  const [search, setSearch] = useState("");
+  const [search, set搜索] = useState("");
   const [target, setTarget] = useState("all");
   const [status, setStatus] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -45,7 +45,7 @@ export default function LogsPage() {
   async function fetchLogs(p = page) {
     setLoading(true); setError(null);
     try {
-      const params = new URLSearchParams();
+      const params = new URL搜索Params();
       if (search.trim()) params.set("search", search.trim());
       if (target !== "all") params.set("target", target);
       if (status !== "all") params.set("status", status);
@@ -76,7 +76,7 @@ export default function LogsPage() {
   async function handleExportCsv() {
     setBusy(true);
     try {
-      const params = new URLSearchParams();
+      const params = new URL搜索Params();
       if (search.trim()) params.set("search", search.trim());
       if (target !== "all") params.set("target", target);
       params.set("export","csv");
@@ -120,7 +120,7 @@ export default function LogsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">Logs</h1>
+          <h1 className="text-lg font-semibold tracking-tight">日志</h1>
           <p className="text-sm text-[rgb(0_0_0/44%)]">真实 D1 日志 — 支持搜索、筛选、保留与导出，共 {total}.</p>
         </div>
         <div className="flex gap-2">
@@ -132,7 +132,7 @@ export default function LogsPage() {
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader><CardTitle className="text-sm">筛选</CardTitle></CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-4">
-          <Input placeholder="search ip or target" value={search} onChange={e=>setSearch(e.target.value)} className="rounded-[8px]" />
+          <Input placeholder="搜索 IP 或目标" value={search} onChange={e=>set搜索(e.target.value)} className="rounded-[8px]" />
           <select value={target} onChange={e=>setTarget(e.target.value)} className="rounded-[8px] border px-2 py-2 text-sm">
             <option value="all">全部目标</option>
             <option value="clash">clash</option>
@@ -147,7 +147,7 @@ export default function LogsPage() {
             <option value="400">400</option>
             <option value="500">500</option>
           </select>
-          <Button onClick={()=>{ setPage(1); fetchLogs(1); }} className="rounded-[8px]">Search</Button>
+          <Button onClick={()=>{ setPage(1); fetchLogs(1); }} className="rounded-[8px]">搜索</Button>
           <Input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} className="rounded-[8px]" />
           <Input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} className="rounded-[8px]" />
           <div className="flex gap-2">
@@ -165,7 +165,7 @@ export default function LogsPage() {
           {loading ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
            logs.length===0 ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">暂无日志</div> :
            <Table>
-             <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>IP</TableHead><TableHead>Target</TableHead><TableHead>Status</TableHead><TableHead>Duration</TableHead><TableHead></TableHead></TableRow></TableHeader>
+             <TableHeader><TableRow><TableHead>时间</TableHead><TableHead>IP</TableHead><TableHead>目标</TableHead><TableHead>状态</TableHead><TableHead>耗时</TableHead><TableHead></TableHead></TableRow></TableHeader>
              <TableBody>
                {logs.map((row, idx)=>(
                  <TableRow key={idx}>
