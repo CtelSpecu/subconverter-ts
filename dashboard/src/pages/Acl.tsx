@@ -35,7 +35,7 @@ export default function AclPage() {
       const h = authHeaders();
       const res = await fetch("/dashboard/api/acl", { headers: h });
       if (res.status===401) { window.location.href="/dashboard/auth"; return; }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       const j = await res.json() as { blackEnabled:boolean, whiteEnabled:boolean };
       setEnableBlacklist(!!j.blackEnabled);
       setEnableWhitelist(!!j.whiteEnabled);
@@ -51,7 +51,7 @@ export default function AclPage() {
         }
       }
       setData(next);
-    } catch(e:any){ setError(e?.message||"Failed"); }
+    } catch(e:any){ setError(e?.message||"失败"); }
     finally { setLoading(false); }
   }
   useEffect(()=>{ fetchAcl(); }, []);
@@ -60,18 +60,18 @@ export default function AclPage() {
     setBusy(true);
     try {
       const res = await fetch("/dashboard/api/acl", { method:"POST", headers: authHeaders(), body: JSON.stringify({ enableBlack: v }) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       setEnableBlacklist(v);
-    } catch(e:any){ setError(e?.message||"Toggle failed"); }
+    } catch(e:any){ setError(e?.message||"切换失败"); }
     finally { setBusy(false); }
   }
   async function toggleWhite(v:boolean) {
     setBusy(true);
     try {
       const res = await fetch("/dashboard/api/acl", { method:"POST", headers: authHeaders(), body: JSON.stringify({ enableWhite: v }) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       setEnableWhitelist(v);
-    } catch(e:any){ setError(e?.message||"Toggle failed"); }
+    } catch(e:any){ setError(e?.message||"切换失败"); }
     finally { setBusy(false); }
   }
 
@@ -88,25 +88,25 @@ export default function AclPage() {
           await fetch(`/dashboard/api/acl/${dialogTab}`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ value: editing, action: "remove" }) });
           const res = await fetch(`/dashboard/api/acl/${dialogTab}`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ value: v, action: "add" }) });
           const j = await res.json().catch(()=>({}));
-          if (!res.ok) throw new Error((j as any).error || `HTTP ${res.status}`);
+          if (!res.ok) throw new Error((j as any).error || `请求失败 ${res.status}`);
         }
       } else {
         const res = await fetch(`/dashboard/api/acl/${dialogTab}`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ value: v, action: "add" }) });
         const j = await res.json().catch(()=>({}));
-        if (!res.ok) throw new Error((j as any).error || `HTTP ${res.status}`);
+        if (!res.ok) throw new Error((j as any).error || `请求失败 ${res.status}`);
       }
       setDialogOpen(false);
       await fetchAcl();
-    } catch(e:any){ setError(e?.message||"保存 failed"); }
+    } catch(e:any){ setError(e?.message||"保存失败"); }
     finally { setBusy(false); }
   };
   const handleDelete = async (tab: TabKey, value: string) => {
     setBusy(true);
     try {
       const res = await fetch(`/dashboard/api/acl/${tab}`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ value, action: "remove" }) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       await fetchAcl();
-    } catch(e:any){ setError(e?.message||"删除 failed"); }
+    } catch(e:any){ setError(e?.message||"删除失败"); }
     finally { setBusy(false); }
   };
 

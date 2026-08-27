@@ -22,7 +22,7 @@ async function tryParseLink(raw: string): Promise<ParseResult> {
   if (t) headers.Authorization = `Bearer ${t}`;
   const res = await fetch("/dashboard/api/debug", { method:"POST", headers, body: JSON.stringify({ link: input }) });
   const j = await res.json().catch(()=>({})) as any;
-  if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(j?.error || `请求失败 ${res.status}`);
   // backend returns {proxy, clash, surge}
   const proxyJson = JSON.stringify(j.proxy ?? j, null, 2);
   const clash = String(j.clash || "");

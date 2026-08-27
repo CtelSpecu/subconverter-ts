@@ -113,7 +113,7 @@ export default function ConfigPage() {
           "";
         if (token) headers["Authorization"] = `Bearer ${token}`;
         const res = await fetch("/dashboard/api/config", { headers });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`请求失败 ${res.status}`);
         const data = (await res.json()) as { settings?: Record<string, unknown>; overlay?: Record<string, unknown> };
         if (cancelled) return;
         // merge settings + overlay for display, keep overlay separate note
@@ -145,7 +145,7 @@ export default function ConfigPage() {
         }
       } catch (e) {
         if (cancelled) return;
-        setSnapshotError(e instanceof Error ? e.message : "Failed to fetch config");
+        setSnapshotError(e instanceof Error ? e.message : "获取配置失败");
         // keep fallback snapshot visible
       } finally {
         if (!cancelled) setSnapshotLoading(false);
@@ -202,7 +202,7 @@ export default function ConfigPage() {
       });
       const body = await res.json().catch(() => ({} as Record<string, unknown>));
       if (!res.ok) {
-        const msg = (body as Record<string, unknown>).error ?? (body as Record<string, unknown>).message ?? `保存 failed (${res.status})`;
+        const msg = (body as Record<string, unknown>).error ?? (body as Record<string, unknown>).message ?? `保存失败 (${res.status})`;
         setSaveError(String(msg));
         return;
       }
@@ -230,7 +230,7 @@ export default function ConfigPage() {
         // ignore refresh failure
       }
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "保存 failed. Check network.");
+      setSaveError(e instanceof Error ? e.message : "保存失败. Check network.");
     } finally {
       setSaving(false);
     }

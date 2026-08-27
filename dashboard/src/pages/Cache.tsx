@@ -26,11 +26,11 @@ export default function CachePage() {
     try {
       const res = await fetch("/dashboard/api/cache", { headers: authHeaders() });
       if (res.status===401) { window.location.href="/dashboard/auth"; return; }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       const data = await res.json() as { stats: {hitRate:number|null, entries:number, rulesets:number}, timestamp:number };
       setStats(data.stats || { hitRate:null, entries:0, rulesets:0 });
       setTimestamp(data.timestamp || Date.now());
-    } catch(e:any){ setError(e?.message||"Failed"); }
+    } catch(e:any){ setError(e?.message||"失败"); }
     finally { setLoading(false); }
   }
   useEffect(()=>{ fetchStats(); }, []);
@@ -40,10 +40,10 @@ export default function CachePage() {
     try {
       const res = await fetch("/dashboard/api/cache/flush", { method:"POST", headers: authHeaders() });
       const body = await res.json().catch(()=>({}));
-      if (!res.ok) throw new Error((body as any).error || `HTTP ${res.status}`);
+      if (!res.ok) throw new Error((body as any).error || `请求失败 ${res.status}`);
       setStatus("Flushed");
       await fetchStats();
-    } catch(e:any){ setStatus(e?.message||"清空 failed"); }
+    } catch(e:any){ setStatus(e?.message||"清空失败"); }
     finally { setBusy(false); setFlushOpen(false); }
   }
   async function handleRefresh() {
@@ -51,10 +51,10 @@ export default function CachePage() {
     try {
       const res = await fetch("/dashboard/api/cache/refresh", { method:"POST", headers: authHeaders() });
       const body = await res.json().catch(()=>({}));
-      if (!res.ok) throw new Error((body as any).error || `HTTP ${res.status}`);
+      if (!res.ok) throw new Error((body as any).error || `请求失败 ${res.status}`);
       setStatus("Refreshed");
       await fetchStats();
-    } catch(e:any){ setStatus(e?.message||"刷新 failed"); }
+    } catch(e:any){ setStatus(e?.message||"刷新失败"); }
     finally { setBusy(false); setRefreshOpen(false); }
   }
 

@@ -39,11 +39,11 @@ export default function DomainsPage() {
     try {
       const res = await fetch("/dashboard/api/domains", { headers: authHeaders() });
       if (res.status === 401) { window.location.href = "/dashboard/auth"; return; }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       const data = await res.json() as { domains: AllowEntry[]; managedPrefix: string };
       setAllowlist(Array.isArray(data.domains) ? data.domains : []);
       if (data.managedPrefix) setManagedPrefix(String(data.managedPrefix));
-    } catch (e:any) { setError(e?.message || "Failed to fetch"); }
+    } catch (e:any) { setError(e?.message || "获取失败"); }
     finally { setLoading(false); }
   }
   useEffect(()=>{ fetchDomains(); }, []);
@@ -58,10 +58,10 @@ export default function DomainsPage() {
     try {
       const res = await fetch("/dashboard/api/domains", { method: "POST", headers: { ...authHeaders(), "Content-Type":"application/json" }, body: JSON.stringify({ domain: v, remark: remarkInput.trim() }) });
       const body = await res.json().catch(()=>({}));
-      if (!res.ok) { setActionError((body as any).error || `添加 failed ${res.status}`); return; }
+      if (!res.ok) { setActionError((body as any).error || `添加失败 ${res.status}`); return; }
       setDomainInput(""); setRemarkInput(""); setConfirmChecked(false); setAddOpen(false);
       await fetchDomains();
-    } catch (e:any){ setActionError(e?.message||"添加 failed"); }
+    } catch (e:any){ setActionError(e?.message||"添加失败"); }
   };
   const handleDelete = async () => {
     if (!deleteTarget || !deleteConfirm) return;
@@ -69,10 +69,10 @@ export default function DomainsPage() {
     try {
       const res = await fetch(`/dashboard/api/domains/${encodeURIComponent(deleteTarget.domain)}`, { method: "DELETE", headers: authHeaders() });
       const body = await res.json().catch(()=>({}));
-      if (!res.ok) { setActionError((body as any).error || `删除 failed ${res.status}`); return; }
+      if (!res.ok) { setActionError((body as any).error || `删除失败 ${res.status}`); return; }
       setDeleteTarget(null); setDeleteConfirm(false);
       await fetchDomains();
-    } catch (e:any){ setActionError(e?.message||"删除 failed"); }
+    } catch (e:any){ setActionError(e?.message||"删除失败"); }
   };
 
   return (

@@ -55,12 +55,12 @@ export default function LogsPage() {
       params.set("limit", String(limit));
       const res = await fetch(`/dashboard/api/logs?${params.toString()}`, { headers: authHeaders() });
       if (res.status===401) { window.location.href="/dashboard/auth"; return; }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       const data = await res.json() as { logs: LogRow[], total:number, retention:number };
       setLogs(Array.isArray(data.logs) ? data.logs : []);
       setTotal(Number(data.total||0));
       if (data.retention) { setRetention(String(data.retention)); setRetentionSaved(String(data.retention)); }
-    } catch(e:any){ setError(e?.message||"Failed"); }
+    } catch(e:any){ setError(e?.message||"失败"); }
     finally { setLoading(false); }
   }
   useEffect(()=>{ fetchLogs(1); }, []);
@@ -81,13 +81,13 @@ export default function LogsPage() {
       if (target !== "all") params.set("target", target);
       params.set("export","csv");
       const res = await fetch(`/dashboard/api/logs?${params.toString()}`, { headers: authHeaders() });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href=url; a.download="logs.csv"; a.click();
       URL.revokeObjectURL(url);
-    } catch(e:any){ setError(e?.message||"Export failed"); }
+    } catch(e:any){ setError(e?.message||"导出失败"); }
     finally { setBusy(false); }
   }
   async function handleRetentionSave() {
@@ -95,10 +95,10 @@ export default function LogsPage() {
     try {
       const res = await fetch("/dashboard/api/logs/retention", { method:"POST", headers: { ...authHeaders(), "Content-Type":"application/json" }, body: JSON.stringify({ days: Number(retention) }) });
       const j = await res.json().catch(()=>({}));
-      if (!res.ok) throw new Error((j as any).error || `HTTP ${res.status}`);
+      if (!res.ok) throw new Error((j as any).error || `请求失败 ${res.status}`);
       setRetentionSaved(retention);
       await fetchLogs(page);
-    } catch(e:any){ setError(e?.message||"保存 failed"); }
+    } catch(e:any){ setError(e?.message||"保存失败"); }
     finally { setBusy(false); }
   }
   function openDetail(row: LogRow) { setSelected(row); setSheetOpen(true); }
@@ -106,9 +106,9 @@ export default function LogsPage() {
     // add to ACL IP blacklist
     try {
       const res = await fetch("/dashboard/api/acl/ip", { method:"POST", headers: { ...authHeaders(), "Content-Type":"application/json" }, body: JSON.stringify({ value: ip, action: "add" }) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       alert(`Blocked ${ip}`);
-    } catch(e:any){ alert(e?.message||"Block failed"); }
+    } catch(e:any){ alert(e?.message||"封禁失败"); }
   }
   function statusVariant(s:number): "success"|"destructive"|"secondary" {
     if (s>=200 && s<300) return "success";

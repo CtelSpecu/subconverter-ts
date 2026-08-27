@@ -43,13 +43,13 @@ export default function LimitsPage() {
     try {
       const res = await fetch("/dashboard/api/limits", { headers: authHeaders() });
       if (res.status===401) { window.location.href="/dashboard/auth"; return; }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       const data = await res.json() as { limits: { perIp:{rpm:number, burst:number}, perDomain:{concurrency:number, timeout:number}, global:{rps:number} } };
       const l = data.limits;
       if (l?.perIp) { if (l.perIp.rpm!=null) setPerIpRpm(Number(l.perIp.rpm)); if (l.perIp.burst!=null) setPerIpBurst(Number(l.perIp.burst)); }
       if (l?.perDomain) { if (l.perDomain.concurrency!=null) setPerDomainConcurrency(Number(l.perDomain.concurrency)); if (l.perDomain.timeout!=null) setPerDomainTimeout(Number(l.perDomain.timeout)); }
       if (l?.global?.rps!=null) setGlobalRps(Number(l.global.rps));
-    } catch(e:any){ setError(e?.message||"Failed"); }
+    } catch(e:any){ setError(e?.message||"失败"); }
     finally { setLoading(false); }
   }
   useEffect(()=>{ fetchLimits(); }, []);
@@ -60,9 +60,9 @@ export default function LimitsPage() {
       const payload = { limits: { perIp: { rpm: perIpRpm, burst: perIpBurst }, perDomain: { concurrency: perDomainConcurrency, timeout: perDomainTimeout }, global: { rps: globalRps } } };
       const res = await fetch("/dashboard/api/limits", { method:"PUT", headers: authHeaders(), body: JSON.stringify(payload) });
       const j = await res.json().catch(()=>({}));
-      if (!res.ok) throw new Error((j as any).error || `HTTP ${res.status}`);
+      if (!res.ok) throw new Error((j as any).error || `请求失败 ${res.status}`);
       setSaved(true); setTimeout(()=>setSaved(false),1800);
-    } catch(e:any){ setError(e?.message||"保存 failed"); }
+    } catch(e:any){ setError(e?.message||"保存失败"); }
     finally { setSaving(false); }
   };
   const handleReset = async () => {
