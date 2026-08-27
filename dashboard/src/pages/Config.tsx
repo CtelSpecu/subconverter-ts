@@ -1,43 +1,172 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectItem } from "@/components/ui/select";
 
-const SNAPSHOT = {
-  managedPrefix: "https://sub.example.com",
-  clashRuleBase: "base/rules",
-  cacheTtlMs: 60000,
-  defaultTarget: "clash",
-  enableInsert: true,
+type OverlayKey =
+  | "API_MODE"
+  | "API_TOKEN"
+  | "DEFAULT_URL"
+  | "MANAGED_PREFIX"
+  | "FRONTEND_ALLOWLIST"
+  | "RETENTION_DAYS";
+
+type AllowlistEntry = {
+  key: OverlayKey;
+  label: string;
+  placeholder: string;
+  description: string;
+  control: "select" | "password" | "text" | "textarea";
+  options?: string[];
+};
+
+const ALLOWLIST: AllowlistEntry[] = [
+  {
+    key: "API_MODE",
+    label: "API Mode",
+    placeholder: "true",
+    description: "Enable API mode — true / false",
+    control: "select",
+    options: ["true", "false"],
+  },
+  {
+    key: "API_TOKEN",
+    label: "API Token",
+    placeholder: "••••••••",
+    description: "Bearer token for /sub and dashboard auth",
+    control: "password",
+  },
+  {
+    key: "DEFAULT_URL",
+    label: "Default URL",
+    placeholder: "https://example.com/sub.txt",
+    description: "Fallback subscription URL when ?url is empty",
+    control: "text",
+  },
+  {
+    key: "MANAGED_PREFIX",
+    label: "Managed Prefix",
+    placeholder: "https://sub.example.com",
+    description: "Prefix for write_managed_config / MANAGED-CONFIG",
+    control: "text",
+  },
+  {
+    key: "FRONTEND_ALLOWLIST",
+    label: "Frontend Allowlist",
+    placeholder: "https://example.com, https://app.example.com",
+    description: "Comma separated allowed origins (empty = allow all)",
+    control: "textarea",
+  },
+  {
+    key: "RETENTION_DAYS",
+    label: "Retention Days",
+    placeholder: "180",
+    description: "Log retention window — 7 / 30 / 90 / 180 / 365",
+    control: "select",
+    options: ["7", "30", "90", "180", "365"],
+  },
+];
+
+const FALLBACK_SNAPSHOT = {
+  apiMode: true,
+  apiAccessToken: "***",
+  defaultUrls: "",
+  managedConfigPrefix: "http://127.0.0.1:25500",
+  frontendAllowlist: "",
+  retentionDays: 180,
   _note: "Read-only buildSettings snapshot. Edits write to KV_ADMIN:config:overlay via allowlist.",
 };
 
-type OverlayKey = "cacheTtlMs" | "defaultTarget" | "managedPrefix";
-const ALLOWLIST: { key: OverlayKey; label: string; placeholder: string }[] = [
-  { key: "cacheTtlMs", label: "Cache TTL (ms)", placeholder: "60000" },
-  { key: "defaultTarget", label: "Default target", placeholder: "clash" },
-  { key: "managedPrefix", label: "Managed prefix", placeholder: "https://sub.example.com" },
-];
-
 export default function ConfigPage() {
-  const [snapshot] = useState(() => JSON.stringify(SNAPSHOT, null, 2));
+  const [snapshotObj, setSnapshotObj] = useState<Record<string, unknown>>(FALLBACK_SNAPSHOT as Record<string, unknown>);
+  const [snapshotLoading, setSnapshotLoading] = useState(true);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
+
   const [overlay, setOverlay] = useState<Record<OverlayKey, string>>({
-    cacheTtlMs: "",
-    defaultTarget: "",
-    managedPrefix: "",
+    API_MODE: "",
+    API_TOKEN: "",
+    DEFAULT_URL: "",
+    MANAGED_PREFIX: "",
+    FRONTEND_ALLOWLIST: "",
+    RETENTION_DAYS: "",
   });
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const snapshotText = JSON.stringify(snapshotObj, null, 2);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchConfig() {
+      try {
+        setSnapshotLoading(true);
+        setSnapshotError(null);
+        const headers: Record<string, string> = {};
+        const token =
+          localStorage.getItem("dashboard_token") ??
+          localStorage.getItem("auth_token") ??
+          localStorage.getItem("DASHBOARD_TOKEN") ??
+          "";
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        const res = await fetch("/dashboard/api/config", { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { settings?: Record<string, unknown>; overlay?: Record<string, unknown> };
+        if (cancelled) return;
+        // merge settings + overlay for display, keep overlay separate note
+        const merged: Record<string, unknown> = {
+          ...(data.settings ?? {}),
+          ...(data.overlay ? { _overlay: data.overlay } : {}),
+        };
+        // if backend returns empty settings, fallback to at least show fetched shape
+        if (Object.keys(merged).length === 0) {
+          setSnapshotObj(FALLBACK_SNAPSHOT as Record<string, unknown>);
+        } else {
+          // ensure _note present
+          if (!("_note" in merged)) {
+            (merged as Record<string, unknown>)._note =
+              "Read-only buildSettings snapshot. Edits write to KV_ADMIN:config:overlay via allowlist.";
+          }
+          setSnapshotObj(merged);
+        }
+        // hydrate overlay fields if backend already has overlay values
+        if (data.overlay && typeof data.overlay === "object") {
+          setOverlay((prev) => {
+            const next = { ...prev };
+            for (const { key } of ALLOWLIST) {
+              const v = (data.overlay as Record<string, unknown>)[key];
+              if (v !== undefined && v !== null) next[key] = String(v);
+            }
+            return next;
+          });
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setSnapshotError(e instanceof Error ? e.message : "Failed to fetch config");
+        // keep fallback snapshot visible
+      } finally {
+        if (!cancelled) setSnapshotLoading(false);
+      }
+    }
+    fetchConfig();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(snapshot);
+    await navigator.clipboard.writeText(snapshotText);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
 
-  function handleSave() {
+  async function handleSave() {
     setSaveError(null);
+    setSaved(false);
+
     const payload: Record<string, string> = {};
     for (const { key } of ALLOWLIST) {
       const v = overlay[key].trim();
@@ -47,19 +176,63 @@ export default function ConfigPage() {
       setSaveError("Enter at least one value to save to overlay.");
       return;
     }
-    if (payload.cacheTtlMs && Number.isNaN(Number(payload.cacheTtlMs))) {
-      setSaveError("Cache TTL must be a number (ms).");
+    if (payload.API_MODE && !["true", "false"].includes(payload.API_MODE)) {
+      setSaveError("API_MODE must be true or false.");
       return;
     }
-    // In production this POSTs to /dashboard/api/config/overlay
-    // Here we simulate success; parent can wire to real endpoint later
+    if (payload.RETENTION_DAYS && !["7", "30", "90", "180", "365"].includes(payload.RETENTION_DAYS)) {
+      setSaveError("Retention must be one of 7, 30, 90, 180, 365.");
+      return;
+    }
+
+    setSaving(true);
     try {
-      const existing = JSON.parse(localStorage.getItem("kv_admin_config_overlay") ?? "{}");
-      localStorage.setItem("kv_admin_config_overlay", JSON.stringify({ ...existing, ...payload }));
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token =
+        localStorage.getItem("dashboard_token") ??
+        localStorage.getItem("auth_token") ??
+        localStorage.getItem("DASHBOARD_TOKEN") ??
+        "";
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch("/dashboard/api/config", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => ({} as Record<string, unknown>));
+      if (!res.ok) {
+        const msg = (body as Record<string, unknown>).error ?? (body as Record<string, unknown>).message ?? `Save failed (${res.status})`;
+        setSaveError(String(msg));
+        return;
+      }
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      setSaveError("Save failed. Check browser storage.");
+      setTimeout(() => setSaved(false), 2500);
+
+      // refresh snapshot to reflect newly applied overlay
+      try {
+        const r = await fetch("/dashboard/api/config", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (r.ok) {
+          const data = (await r.json()) as { settings?: Record<string, unknown>; overlay?: Record<string, unknown> };
+          const merged: Record<string, unknown> = {
+            ...(data.settings ?? {}),
+            ...(data.overlay ? { _overlay: data.overlay } : {}),
+          };
+          if (Object.keys(merged).length > 0) {
+            if (!("_note" in merged)) {
+              (merged as Record<string, unknown>)._note =
+                "Read-only buildSettings snapshot. Edits write to KV_ADMIN:config:overlay via allowlist.";
+            }
+            setSnapshotObj(merged);
+          }
+        }
+      } catch {
+        // ignore refresh failure
+      }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Save failed. Check network.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -76,7 +249,16 @@ export default function ConfigPage() {
           <CardDescription>JSON mono + copy. Edits write to KV_ADMIN:config:overlay.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <pre className="overflow-auto rounded-[8px] border bg-zinc-50 p-4 font-mono text-xs leading-relaxed">{snapshot}</pre>
+          {snapshotLoading ? (
+            <div className="rounded-[8px] border bg-zinc-50 p-4 text-sm text-[rgb(0_0_0/44%)]">Loading snapshot from /dashboard/api/config…</div>
+          ) : (
+            <pre className="overflow-auto rounded-[8px] border bg-zinc-50 p-4 font-mono text-xs leading-relaxed">{snapshotText}</pre>
+          )}
+          {snapshotError ? (
+            <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Could not fetch live snapshot ({snapshotError}) — showing fallback.
+            </div>
+          ) : null}
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleCopy}>
               {copied ? "Copied" : "Copy"}
@@ -95,31 +277,78 @@ export default function ConfigPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {ALLOWLIST.map(({ key, label, placeholder }) => (
+            {ALLOWLIST.map(({ key, label, placeholder, description, control, options }) => (
               <div key={key} className="space-y-1.5">
                 <label className="text-xs font-medium text-[rgb(0_0_0/64%)]" htmlFor={`overlay-${key}`}>
                   {label} <span className="font-mono text-[11px] text-[rgb(0_0_0/44%)]">({key})</span>
                 </label>
-                <Input
-                  id={`overlay-${key}`}
-                  placeholder={placeholder}
-                  value={overlay[key]}
-                  onChange={(e) => setOverlay((prev) => ({ ...prev, [key]: e.target.value }))}
-                />
+                {control === "select" ? (
+                  <Select
+                    id={`overlay-${key}`}
+                    value={overlay[key]}
+                    onChange={(e) => setOverlay((prev) => ({ ...prev, [key]: e.target.value }))}
+                    onValueChange={(v) => setOverlay((prev) => ({ ...prev, [key]: v }))}
+                  >
+                    <option value="">{placeholder ? `Select — e.g. ${placeholder}` : "Select…"}</option>
+                    {options?.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                ) : control === "textarea" ? (
+                  <Textarea
+                    id={`overlay-${key}`}
+                    placeholder={placeholder}
+                    value={overlay[key]}
+                    onChange={(e) => setOverlay((prev) => ({ ...prev, [key]: e.target.value }))}
+                    className="min-h-[84px]"
+                  />
+                ) : control === "password" ? (
+                  <Input
+                    id={`overlay-${key}`}
+                    type="password"
+                    placeholder={placeholder}
+                    value={overlay[key]}
+                    onChange={(e) => setOverlay((prev) => ({ ...prev, [key]: e.target.value }))}
+                  />
+                ) : (
+                  <Input
+                    id={`overlay-${key}`}
+                    placeholder={placeholder}
+                    value={overlay[key]}
+                    onChange={(e) => setOverlay((prev) => ({ ...prev, [key]: e.target.value }))}
+                  />
+                )}
+                <p className="text-[11px] leading-relaxed text-[rgb(0_0_0/44%)]">{description}</p>
               </div>
             ))}
           </div>
 
           {saveError ? <div className="rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{saveError}</div> : null}
-          {saved ? <div className="rounded-[8px] border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">Overlay saved locally (KV_ADMIN:config:overlay in production).</div> : null}
+          {saved ? (
+            <div className="rounded-[8px] border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              Overlay saved to KV_ADMIN:config:overlay — next request reads the new values.
+            </div>
+          ) : null}
 
           <div className="flex items-center gap-2">
-            <Button onClick={handleSave}>Save overlay</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : "Save overlay"}
+            </Button>
             <Button
               variant="outline"
               onClick={() => {
-                setOverlay({ cacheTtlMs: "", defaultTarget: "", managedPrefix: "" });
+                setOverlay({
+                  API_MODE: "",
+                  API_TOKEN: "",
+                  DEFAULT_URL: "",
+                  MANAGED_PREFIX: "",
+                  FRONTEND_ALLOWLIST: "",
+                  RETENTION_DAYS: "",
+                });
                 setSaveError(null);
+                setSaved(false);
               }}
             >
               Clear
@@ -127,7 +356,8 @@ export default function ConfigPage() {
           </div>
 
           <p className="text-xs leading-relaxed text-[rgb(0_0_0/44%)]">
-            Only keys in the allowlist are accepted. All other keys are rejected server-side. Snapshot remains the source of truth; overlay is merged at request time.
+            Only keys in the allowlist are accepted. All other keys are rejected server-side. Snapshot remains the source of truth; overlay is merged at
+            request time.
           </p>
         </CardContent>
       </Card>

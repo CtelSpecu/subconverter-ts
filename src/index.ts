@@ -1,6 +1,6 @@
 import { webGet, flushCache } from './handler/webget.js';
-import { buildSettings, loadExternalConfig } from './handler/settings.js';
-import type { Env } from './handler/settings.js';
+import { buildSettings, loadExternalConfig, applyOverlayToEnv, applyOverlayToSettings } from './handler/settings.js';
+import type { Env, ConfigOverlay } from './handler/settings.js';
 import type { Proxy, Settings } from './types.js';
 import {
   checkAllowlist,
@@ -18,6 +18,7 @@ import {
   handleCacheFlush,
   handleCacheRefresh,
   handleConfigGet,
+  handleConfigPost,
   handleDebugPost,
   scheduledPurge,
 } from './handler/dashboard.js';
@@ -56,9 +57,34 @@ const ALLOWED_TARGETS = new Set([
   'loon',
   'ssd',
   'singbox',
-  'auto',
 ]);
 
+async function getOverlay(env: Env): Promise<ConfigOverlay> {
+  try {
+    const kv = (env as unknown as Record<string, unknown>).ADMIN as KVNamespace | undefined
+      || (env as unknown as Record<string, unknown>).KV_ADMIN as KVNamespace | undefined;
+    if (!kv) return {};
+    const raw = await kv.get('config:overlay');
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    if (!parsed || typeof parsed !== 'object') return {};
+    return parsed as ConfigOverlay;
+  } catch {
+    return {};
+  }
+}
+
+async function getEffectiveEnv(env: Env): Promise<Env> {
+  const overlay = await getOverlay(env);
+  if (!overlay || Object.keys(overlay).length === 0) return env;
+  return applyOverlayToEnv(env, overlay);
+}
+
+async function getEffectiveSettings(env: Env): Promise<Settings> {
+  const overlay = await getOverlay(env);
+  const base = buildSettings(env);
+  return applyOverlayToSettings(base, overlay);
+}
 function corsHeaders(request: Request): Record<string, string> {
   const h: Record<string, string> = {
     'Access-Control-Allow-Origin': '*',
@@ -136,7 +162,7 @@ function applyIncludeExclude(nodes: Proxy[], include: string, exclude: string): 
   return out;
 }
 
-async function handleSub(requestUrl: URL, env: Env, request: Request): Promise<{ body: string; headers: Record<string, string>; status: number }> {
+async function handleSub(requestUrl: URL, env: Env, request: Request, prebuiltSettings?: Settings): Promise<{ body: string; headers: Record<string, string>; status: number }> {
   const params = requestUrl.searchParams;
   let target = params.get('target')?.trim() ?? '';
   const urlParam = params.get('url')?.trim() ?? '';
@@ -148,7 +174,8 @@ async function handleSub(requestUrl: URL, env: Env, request: Request): Promise<{
   const appendInfoRaw = params.get('append_info')?.trim() ?? '';
   const verRaw = params.get('ver')?.trim() ?? '';
 
-  const settings: Settings = buildSettings(env);
+  const settings: Settings = prebuiltSettings ?? await getEffectiveSettings(env);
+
 
   // Optional external config loading (MVP: best-effort)
   if (configParam) {
@@ -435,16 +462,21 @@ export default {
       const pathname = url.pathname;
       const method = request.method.toUpperCase();
       const baseCors = corsHeaders(request);
-      const dashEnv = env as unknown as DashboardEnv;
+      const dashEnvRaw = env as unknown as DashboardEnv;
+      // fetch overlay once per request (gracefully handle missing KV)
+      let overlay: ConfigOverlay = {};
+      try { overlay = await getOverlay(env); } catch {}
+      const effectiveEnv = (overlay && Object.keys(overlay).length) ? applyOverlayToEnv(env, overlay) : env;
+      const effectiveDashEnv = effectiveEnv as unknown as DashboardEnv;
+      // use effective for all allowlist/token checks
+      const dashEnv = effectiveDashEnv;
 
       // CORS preflight — include allowlist headers where applicable
       if (method === 'OPTIONS') {
         const h: Record<string, string> = { ...baseCors };
-        // Dashboard API needs allowlist-aware CORS
         if (pathname.startsWith('/dashboard/api/')) {
           const al = checkAllowlist(request, dashEnv);
           if (!al.allowed) {
-            // preflight blocked: return 403 no ACAO
             return new Response('Forbidden', { status: 403 });
           }
           Object.assign(h, al.headers);
@@ -476,12 +508,10 @@ export default {
         if (!isAuth) {
           const authFail = requireAuth(request, dashEnv);
           if (authFail) {
-            // merge allowlist headers into 401
             for (const [k, v] of Object.entries(al.headers)) authFail.headers.set(k, v);
             return authFail;
           }
         }
-        // route handlers
         const dashHeaders = al.headers;
         const withDash = (resp: Response): Response => {
           for (const [k, v] of Object.entries(dashHeaders)) resp.headers.set(k, v);
@@ -521,7 +551,6 @@ export default {
           if (pathname === '/dashboard/api/cache/refresh' && method === 'POST') {
             return withDash(await handleCacheRefresh(request, dashEnv));
           }
-          // legacy: POST /dashboard/api/cache with {action}
           if (pathname === '/dashboard/api/cache' && method === 'POST') {
             try {
               const b = await request.json().catch(() => ({})) as Record<string, unknown>;
@@ -533,6 +562,9 @@ export default {
           }
           if (pathname === '/dashboard/api/config' && method === 'GET') {
             return withDash(await handleConfigGet(request, dashEnv));
+          }
+          if (pathname === '/dashboard/api/config' && (method === 'POST' || method === 'PUT')) {
+            return withDash(await handleConfigPost(request, dashEnv));
           }
           if (pathname === '/dashboard/api/debug' && method === 'POST') {
             return withDash(await handleDebugPost(request, dashEnv));

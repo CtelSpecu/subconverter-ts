@@ -210,27 +210,18 @@ export async function handleDomainsDelete(request: Request, env: DashboardEnv): 
 }
 
 // ACL: GET/POST /dashboard/api/acl/:type where type in ip/domain/ua/remark with enable switches
-const ACL_TYPES = new Set(['ip', 'domain', 'ua', 'remark']);
+const ACL_TYPES: Record<string, true> = { ip: true, domain: true, ua: true, remark: true };
 const ACL_ENABLED_KEYS = { black: 'acl:enabled:black', white: 'acl:enabled:white' };
 
 export async function handleAcl(request: Request, env: DashboardEnv): Promise<Response> {
-  const kv = getKvAdmin(env);
   const url = new URL(request.url);
-  const method = request.method.toUpperCase();
-  const parts = url.pathname.split('/').filter(Boolean); // dashboard/api/acl/:type
-  // parts: [dashboard, api, acl, type?]
-  const type = parts[3]?.toLowerCase() ?? '';
-  const searchParams = url.searchParams;
-
-  if (method === 'GET' && !type) {
-    // list all? or return enables
-    const blackEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.black, false);
-    const whiteEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.white, false);
-    return json({ blackEnabled, whiteEnabled, types: Array.from(ACL_TYPES) });
-  }
-
-  if (type && !ACL_TYPES.has(type)) {
-    return json({ error: 'invalid acl type' }, 400);
+  const pathname = url.pathname;
+  const typeMatch = pathname.match(/^\/dashboard\/api\/acl\/(ip|domain|ua|remark)$/);
+  if (typeMatch) {
+    const type = typeMatch[1];
+    if (type && !ACL_TYPES[type]) {
+      return json({ error: 'invalid acl type' }, 400);
+    }
   }
 
   if (method === 'GET') {
@@ -366,7 +357,7 @@ export async function handleLimitsPut(request: Request, env: DashboardEnv): Prom
 }
 
 // Logs
-const RETENTION_ALLOWED = new Set([7, 30, 90, 180, 365]);
+const RETENTION_ALLOWED: Record<string, true> = { '7': true, '30': true, '90': true, '180': true, '365': true };
 
 export async function handleLogsGet(request: Request, env: DashboardEnv): Promise<Response> {
   const url = new URL(request.url);
@@ -385,16 +376,24 @@ export async function handleLogsGet(request: Request, env: DashboardEnv): Promis
   const kv = getKvAdmin(env);
   let retention = 180;
   try {
-    const stored = await kv?.get('retention');
-    if (stored) {
-      const n = parseInt(stored, 10);
-      if (RETENTION_ALLOWED.has(n)) retention = n;
+    // prefer overlay RETENTION_DAYS, fallback to legacy 'retention'
+    let overlayRd: string | null = null;
+    try {
+      const ovRaw = await kv?.get('config:overlay');
+      if (ovRaw) {
+        const ov = JSON.parse(ovRaw) as Record<string, string>;
+        if (ov?.RETENTION_DAYS && RETENTION_DAYS_ALLOWED[String(ov.RETENTION_DAYS).trim()]) overlayRd = String(ov.RETENTION_DAYS).trim();
+      }
+    } catch {}
+    if (overlayRd && RETENTION_DAYS_ALLOWED[overlayRd]) {
+      retention = parseInt(overlayRd, 10);
+    } else {
+      const stored = await kv?.get('retention');
+      if (stored && RETENTION_ALLOWED[String(stored).trim()]) retention = parseInt(String(stored).trim(), 10);
     }
   } catch {}
-  if (retentionParam) {
-    const n = parseInt(retentionParam, 10);
-    if (RETENTION_ALLOWED.has(n)) retention = n;
-  }
+  if (retentionParam && RETENTION_ALLOWED[retentionParam]) retention = parseInt(retentionParam, 10);
+
 
   const d1 = getD1(env);
   if (!d1) {
@@ -469,18 +468,23 @@ export async function handleLogsRetentionPost(request: Request, env: DashboardEn
     const body = await request.json().catch(() => ({} as Record<string, unknown>)) as Record<string, unknown>;
     const daysRaw = body.days ?? body.retention ?? body.value;
     const days = Number(daysRaw);
-    if (!RETENTION_ALLOWED.has(days)) {
-      return json({ error: `retention must be one of ${Array.from(RETENTION_ALLOWED).join('/')}` }, 400);
+    if (!RETENTION_ALLOWED[String(days)]) {
+      return json({ error: `retention must be one of ${Object.keys(RETENTION_ALLOWED).join('/')}` }, 400);
     }
     const kv = getKvAdmin(env);
     await kv?.put('retention', String(days)).catch(() => {});
-    // log to retention_log (D1)
+    try {
+      const ovRaw = await kv?.get('config:overlay');
+      let ov: Record<string, string> = {};
+      if (ovRaw) { try { ov = JSON.parse(ovRaw) as Record<string, string>; } catch {} }
+      ov.RETENTION_DAYS = String(days);
+      await kv?.put('config:overlay', JSON.stringify(ov)).catch(() => {});
+    } catch {}
     const d1 = getD1(env);
     if (d1) {
       try {
         await d1.prepare('INSERT INTO retention_log (time, days) VALUES (?, ?)').bind(Date.now(), days).run().catch(() => {});
       } catch {}
-      // schedule purge: delete old logs
       try {
         const cutoff = Date.now() - days * 86400000;
         await d1.prepare('DELETE FROM logs WHERE time < ?').bind(cutoff).run().catch(() => {});
@@ -531,21 +535,162 @@ export async function handleCacheRefresh(_request: Request, _env: DashboardEnv):
 }
 
 // Config
+const CONFIG_OVERLAY_KEYS: Record<string, true> = {
+  API_MODE: true,
+  API_TOKEN: true,
+  DEFAULT_URL: true,
+  MANAGED_PREFIX: true,
+  FRONTEND_ALLOWLIST: true,
+  RETENTION_DAYS: true,
+};
+const CONFIG_OVERLAY_KEY_LIST = Object.keys(CONFIG_OVERLAY_KEYS);
+const RETENTION_DAYS_ALLOWED: Record<string, true> = {
+  '7': true,
+  '30': true,
+  '90': true,
+  '180': true,
+  '365': true,
+};
+
+function normalizeRetentionDays(raw: unknown): string | null {
+  if (raw === undefined || raw === null) return null;
+  const s = String(raw).trim();
+  if (s === '') return '';
+  if (RETENTION_DAYS_ALLOWED[s]) return s;
+  const n = String(parseInt(s, 10));
+  if (RETENTION_DAYS_ALLOWED[n]) return n;
+  return null;
+}
+function validateApiMode(raw: unknown): string | null {
+  if (raw === undefined || raw === null) return null;
+  const s = String(raw).trim().toLowerCase();
+  if (s === 'true' || s === 'false') return s;
+  if (s === '1') return 'true';
+  if (s === '0') return 'false';
+  return '__invalid__';
+}
+
 export async function handleConfigGet(_request: Request, env: DashboardEnv): Promise<Response> {
   try {
     const settings = buildSettings(env as unknown as Env);
-    // Try overlay from KV
     const kv = getKvAdmin(env);
-    let overlay: unknown = null;
+    let overlay: Record<string, string> | null = null;
     try {
       const raw = await kv?.get('config:overlay');
-      if (raw) overlay = JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') overlay = parsed as Record<string, string>;
+      }
     } catch {}
-    return json({ settings, overlay, version: VERSION, timestamp: Date.now() });
+    let effectiveRetention: number | null = null;
+    try {
+      if (overlay && overlay.RETENTION_DAYS && RETENTION_DAYS_ALLOWED[String(overlay.RETENTION_DAYS)]) {
+        effectiveRetention = parseInt(String(overlay.RETENTION_DAYS), 10);
+      } else {
+        const stored = await kv?.get('retention');
+        if (stored && RETENTION_DAYS_ALLOWED[String(stored).trim()]) effectiveRetention = parseInt(String(stored).trim(), 10);
+      }
+    } catch {}
+    return json({ settings, overlay: overlay ?? {}, retention: effectiveRetention, version: VERSION, timestamp: Date.now() });
   } catch {
-    return json({ settings: {}, version: VERSION });
+    return json({ settings: {}, overlay: {}, version: VERSION });
   }
 }
+
+export async function handleConfigPost(request: Request, env: DashboardEnv): Promise<Response> {
+  const kv = getKvAdmin(env);
+  if (!kv) {
+    return json({ error: 'KV not configured' }, 500);
+  }
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json() as Record<string, unknown>;
+  } catch {
+    return json({ error: 'invalid json' }, 400);
+  }
+  // filter to known keys
+  const incoming: Record<string, string> = {};
+  let hasKnown = false;
+  for (const k of CONFIG_OVERLAY_KEY_LIST) {
+    if (Object.prototype.hasOwnProperty.call(body, k)) {
+      hasKnown = true;
+      const v = (body as Record<string, unknown>)[k];
+      if (v === null || v === undefined) {
+        incoming[k] = '';
+      } else {
+        incoming[k] = String(v);
+      }
+    }
+  }
+  if (!hasKnown) {
+    return json({ error: 'no known config keys' }, 400);
+  }
+  if ('API_MODE' in incoming) {
+    const norm = validateApiMode(incoming.API_MODE);
+    if (norm === '__invalid__') {
+      return json({ error: 'API_MODE must be true or false' }, 400);
+    }
+    if (norm !== null) {
+      incoming.API_MODE = norm;
+    } else {
+      delete incoming.API_MODE;
+    }
+  }
+  if ('RETENTION_DAYS' in incoming) {
+    const raw = incoming.RETENTION_DAYS;
+    const trimmed = String(raw).trim();
+    if (trimmed === '') {
+      incoming.RETENTION_DAYS = '';
+    } else {
+      const norm = normalizeRetentionDays(trimmed);
+      if (norm === null) {
+        return json({ error: 'RETENTION_DAYS must be one of 7/30/90/180/365 or empty' }, 400);
+      }
+      incoming.RETENTION_DAYS = norm as string;
+    }
+  }
+  let overlay: Record<string, string> = {};
+  try {
+    const raw = await kv.get('config:overlay');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') overlay = parsed as Record<string, string>;
+    }
+  } catch {}
+  for (const [k, v] of Object.entries(incoming)) {
+    const trimmed = String(v).trim();
+    if (k === 'RETENTION_DAYS' && trimmed === '') {
+      delete overlay[k];
+    } else if (trimmed === '' && k === 'API_MODE') {
+      delete overlay[k];
+    } else if (trimmed === '') {
+      overlay[k] = '';
+    } else {
+      overlay[k] = trimmed;
+    }
+  }
+  for (const k of Object.keys(overlay)) {
+    if (!CONFIG_OVERLAY_KEYS[k]) delete overlay[k];
+  }
+  try {
+    await kv.put('config:overlay', JSON.stringify(overlay));
+  } catch {
+    return json({ error: 'failed to store overlay' }, 500);
+  }
+  try {
+    if ('RETENTION_DAYS' in incoming) {
+      const rd = incoming.RETENTION_DAYS;
+      if (rd === '') {
+        try { await kv.delete('retention'); } catch {}
+      } else if (rd) {
+        await kv.put('retention', String(rd));
+      }
+    }
+  } catch {}
+  return json({ ok: true, overlay, version: VERSION, timestamp: Date.now() });
+}
+
+
 
 // Debug: POST {link}
 export async function handleDebugPost(request: Request, _env: DashboardEnv): Promise<Response> {
@@ -584,10 +729,25 @@ export async function scheduledPurge(env: DashboardEnv): Promise<void> {
     const kv = getKvAdmin(env);
     let retention = 180;
     try {
-      const raw = await kv?.get('retention');
-      if (raw) {
-        const n = parseInt(raw, 10);
-        if (RETENTION_ALLOWED.has(n)) retention = n;
+      // prefer overlay RETENTION_DAYS
+      const overlayRaw = await kv?.get('config:overlay');
+      if (overlayRaw) {
+        try {
+          const ov = JSON.parse(overlayRaw) as Record<string, string>;
+          const rd = ov?.RETENTION_DAYS;
+          if (rd && RETENTION_DAYS_ALLOWED[String(rd).trim()]) {
+            retention = parseInt(String(rd).trim(), 10);
+          } else if (!rd) {
+            const raw = await kv?.get('retention');
+            if (raw && RETENTION_DAYS_ALLOWED[String(raw).trim()]) retention = parseInt(String(raw).trim(), 10);
+          }
+        } catch {
+          const raw = await kv?.get('retention');
+          if (raw && RETENTION_DAYS_ALLOWED[String(raw).trim()]) retention = parseInt(String(raw).trim(), 10);
+        }
+      } else {
+        const raw = await kv?.get('retention');
+        if (raw && RETENTION_DAYS_ALLOWED[String(raw).trim()]) retention = parseInt(String(raw).trim(), 10);
       }
     } catch {}
     const d1 = getD1(env);

@@ -8,9 +8,19 @@ export interface Env {
   API_TOKEN?: string;
   MANAGED_PREFIX?: string;
   DEFAULT_URL?: string;
-  // allow any other env vars; wrangler passes vars as strings
+  FRONTEND_ALLOWLIST?: string;
+  RETENTION_DAYS?: string;
   [key: string]: string | undefined;
 }
+
+export type ConfigOverlay = {
+  API_MODE?: string;
+  API_TOKEN?: string;
+  DEFAULT_URL?: string;
+  MANAGED_PREFIX?: string;
+  FRONTEND_ALLOWLIST?: string;
+  RETENTION_DAYS?: string;
+};
 
 function defaultSettings(): Settings {
   return {
@@ -87,7 +97,6 @@ export function buildSettings(env: Env): Settings {
     const v = env.API_MODE.trim().toLowerCase();
     if (v === 'false' || v === '0') s.apiMode = false;
     else if (v === 'true' || v === '1') s.apiMode = true;
-    // else keep default true
   }
 
   if (env.API_TOKEN !== undefined) {
@@ -103,6 +112,35 @@ export function buildSettings(env: Env): Settings {
   }
 
   return s;
+}
+
+export function applyOverlayToSettings(settings: Settings, overlay: ConfigOverlay | Record<string, string> | null | undefined): Settings {
+  if (!overlay) return settings;
+  try {
+    if (overlay.API_MODE !== undefined) {
+      const v = String(overlay.API_MODE).trim().toLowerCase();
+      if (v === 'false' || v === '0') settings.apiMode = false;
+      else if (v === 'true' || v === '1') settings.apiMode = true;
+    }
+    if (overlay.API_TOKEN !== undefined) settings.apiAccessToken = String(overlay.API_TOKEN);
+    if (overlay.MANAGED_PREFIX !== undefined) settings.managedConfigPrefix = String(overlay.MANAGED_PREFIX);
+    if (overlay.DEFAULT_URL !== undefined) settings.defaultUrls = String(overlay.DEFAULT_URL);
+  } catch {}
+  return settings;
+}
+
+export function applyOverlayToEnv<T extends Env>(env: T, overlay: ConfigOverlay | Record<string, string> | null | undefined): T {
+  if (!overlay) return env;
+  const out: Record<string, string | undefined> = { ...env } as Record<string, string | undefined>;
+  try {
+    if (overlay.API_MODE !== undefined) out.API_MODE = String(overlay.API_MODE);
+    if (overlay.API_TOKEN !== undefined) out.API_TOKEN = String(overlay.API_TOKEN);
+    if (overlay.DEFAULT_URL !== undefined) out.DEFAULT_URL = String(overlay.DEFAULT_URL);
+    if (overlay.MANAGED_PREFIX !== undefined) out.MANAGED_PREFIX = String(overlay.MANAGED_PREFIX);
+    if (overlay.FRONTEND_ALLOWLIST !== undefined) out.FRONTEND_ALLOWLIST = String(overlay.FRONTEND_ALLOWLIST);
+    if (overlay.RETENTION_DAYS !== undefined) out.RETENTION_DAYS = String(overlay.RETENTION_DAYS);
+  } catch {}
+  return out as T;
 }
 
 export function parseIniPref(content: string): Settings {
