@@ -452,7 +452,6 @@ function tokenMatches(requestUrl: URL, env: Env, strictEmpty = false): boolean {
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     try {
-      // Loop protection
       if (request.headers.has('SubConverter-Request')) {
         const h = corsHeaders(request);
         return new Response('Loop detected', { status: 500, headers: h });
@@ -461,13 +460,28 @@ export default {
       const url = new URL(request.url);
       const pathname = url.pathname;
       const method = request.method.toUpperCase();
+      const host = (request.headers.get('Host') ?? url.hostname).split(':')[0].toLowerCase();
+      const isScd = host === 'scd.ctelspecu.hxcn.top';
+      const isSub = host === 'sub.ctelspecu.hxcn.top';
+      const isWorkersDev = host.endsWith('.workers.dev');
       const baseCors = corsHeaders(request);
       let overlay: ConfigOverlay = {};
       try { overlay = await getOverlay(env); } catch {}
       const effectiveEnv = (overlay && Object.keys(overlay).length) ? applyOverlayToEnv(env, overlay) : env;
       const dashEnv = effectiveEnv as unknown as DashboardEnv;
 
-      // CORS preflight — include allowlist headers where applicable
+      if (!isWorkersDev) {
+        if (isScd && (pathname === '/sub' || pathname === '/sub2clashr' || pathname === '/surge2clash' || pathname === '/version' || pathname === '/refreshrules' || pathname === '/flushcache')) {
+          return new Response('closed', { status: 403, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+        }
+        if (isSub && (pathname === '/dashboard' || pathname.startsWith('/dashboard/'))) {
+          return new Response('closed', { status: 403, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+        }
+        if (isScd && pathname === '/') {
+          return Response.redirect(new URL('/dashboard/', request.url).toString(), 302);
+        }
+      }
+
       if (method === 'OPTIONS') {
         const h: Record<string, string> = { ...baseCors };
         if (pathname.startsWith('/dashboard/api/')) {
@@ -653,11 +667,11 @@ export default {
         return new Response('', { status: 302, headers: h });
       }
 
-      const isSub = pathname === '/sub' && (method === 'GET' || method === 'HEAD');
+      const isSubRoute = pathname === '/sub' && (method === 'GET' || method === 'HEAD');
       const isSub2ClashR = pathname === '/sub2clashr' && method === 'GET';
       const isSurge2Clash = pathname === '/surge2clash' && method === 'GET';
 
-      if (isSub || isSub2ClashR || isSurge2Clash) {
+      if (isSubRoute || isSub2ClashR || isSurge2Clash) {
         if (isSub2ClashR) url.searchParams.set('target', 'clashr');
         if (isSurge2Clash) {
           if (!url.searchParams.get('target')) url.searchParams.set('target', 'clash');
