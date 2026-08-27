@@ -4,8 +4,8 @@ compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 routes = [
-  { pattern = "sub.ctelspecu.hxcn.top/*", zone_name = "hxcn.top" },
-  { pattern = "scd.ctelspecu.hxcn.top/*", zone_name = "hxcn.top" }
+  { pattern = "sub.ctelspecu.hxcn.top", custom_domain = true },
+  { pattern = "scd.ctelspecu.hxcn.top", custom_domain = true },
 ]
 [vars]
 MANAGED_PREFIX = "https://sub.ctelspecu.hxcn.top"
