@@ -214,14 +214,23 @@ const ACL_TYPES: Record<string, true> = { ip: true, domain: true, ua: true, rema
 const ACL_ENABLED_KEYS = { black: 'acl:enabled:black', white: 'acl:enabled:white' };
 
 export async function handleAcl(request: Request, env: DashboardEnv): Promise<Response> {
+  const kv = getKvAdmin(env);
   const url = new URL(request.url);
+  const method = request.method.toUpperCase();
   const pathname = url.pathname;
+  const parts = pathname.split('/').filter(Boolean);
   const typeMatch = pathname.match(/^\/dashboard\/api\/acl\/(ip|domain|ua|remark)$/);
-  if (typeMatch) {
-    const type = typeMatch[1];
-    if (type && !ACL_TYPES[type]) {
-      return json({ error: 'invalid acl type' }, 400);
-    }
+  const type = (typeMatch ? typeMatch[1] : parts[3] ?? '').toLowerCase();
+  const searchParams = url.searchParams;
+
+  if (method === 'GET' && !type) {
+    const blackEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.black, false);
+    const whiteEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.white, false);
+    return json({ blackEnabled, whiteEnabled, types: Object.keys(ACL_TYPES) });
+  }
+
+  if (type && !ACL_TYPES[type]) {
+    return json({ error: 'invalid acl type' }, 400);
   }
 
   if (method === 'GET') {
@@ -229,7 +238,6 @@ export async function handleAcl(request: Request, env: DashboardEnv): Promise<Re
     const entries = await kvGetJson<unknown[]>(kv, key, []);
     const blackEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.black, false);
     const whiteEnabled = await kvGetJson<boolean>(kv, ACL_ENABLED_KEYS.white, false);
-    // also support ?enabled= query to get switches only? return both
     const enabledParam = searchParams.get('enabled');
     if (enabledParam === 'black' || enabledParam === 'white') {
       const v = enabledParam === 'black' ? blackEnabled : whiteEnabled;

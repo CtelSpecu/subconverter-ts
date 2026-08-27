@@ -462,14 +462,10 @@ export default {
       const pathname = url.pathname;
       const method = request.method.toUpperCase();
       const baseCors = corsHeaders(request);
-      const dashEnvRaw = env as unknown as DashboardEnv;
-      // fetch overlay once per request (gracefully handle missing KV)
       let overlay: ConfigOverlay = {};
       try { overlay = await getOverlay(env); } catch {}
       const effectiveEnv = (overlay && Object.keys(overlay).length) ? applyOverlayToEnv(env, overlay) : env;
-      const effectiveDashEnv = effectiveEnv as unknown as DashboardEnv;
-      // use effective for all allowlist/token checks
-      const dashEnv = effectiveDashEnv;
+      const dashEnv = effectiveEnv as unknown as DashboardEnv;
 
       // CORS preflight — include allowlist headers where applicable
       if (method === 'OPTIONS') {
@@ -601,30 +597,26 @@ export default {
         return new Response(VERSION, { status: 200, headers: h });
       }
 
-      // /refreshrules
       if (pathname === '/refreshrules' && method === 'GET') {
-        if (!tokenMatches(url, env, false)) {
+        if (!tokenMatches(url, effectiveEnv, false)) {
           return new Response('Forbidden', { status: 403, headers: baseCors });
         }
         const h = { ...baseCors, 'Content-Type': 'text/plain;charset=utf-8' };
         return new Response('Rules refreshed', { status: 200, headers: h });
       }
 
-      // /readconf
       if (pathname === '/readconf' && method === 'GET') {
-        if (!tokenMatches(url, env, false)) {
+        if (!tokenMatches(url, effectiveEnv, false)) {
           return new Response('Forbidden', { status: 403, headers: baseCors });
         }
         const h = { ...baseCors, 'Content-Type': 'text/plain;charset=utf-8' };
         return new Response('', { status: 200, headers: h });
       }
 
-      // /updateconf
       if (pathname === '/updateconf' && method === 'POST') {
-        if (!tokenMatches(url, env, false)) {
+        if (!tokenMatches(url, effectiveEnv, false)) {
           return new Response('Forbidden', { status: 403, headers: baseCors });
         }
-        // For MVP just consume body and return ok
         try {
           await request.text();
         } catch {}
@@ -632,9 +624,8 @@ export default {
         return new Response('Config updated', { status: 200, headers: h });
       }
 
-      // /flushcache
       if (pathname === '/flushcache' && method === 'GET') {
-        if (!tokenMatches(url, env, true)) {
+        if (!tokenMatches(url, effectiveEnv, true)) {
           return new Response('Forbidden', { status: 403, headers: baseCors });
         }
         flushCache();
@@ -642,57 +633,44 @@ export default {
         return new Response('Cache flushed', { status: 200, headers: h });
       }
 
-      // /render — not implemented
       if (pathname === '/render' && method === 'GET') {
         const h = { ...baseCors, 'Content-Type': 'text/plain;charset=utf-8' };
         return new Response('Not Found', { status: 404, headers: h });
       }
 
-      // Allowlist in front of converter routes (spec 6.2) — empty -> allow with ACAO *
       const isSubLike = pathname === '/sub' || pathname === '/sub2clashr' || pathname === '/surge2clash';
       if (isSubLike) {
         const al2 = checkAllowlist(request, dashEnv);
         if (!al2.allowed) {
           return al2.response ?? new Response(JSON.stringify({ error: 'blocked_by_allowlist' }), { status: 403, headers: { 'Content-Type': 'application/json;charset=utf-8' } });
         }
-        // merge allowlist headers into baseCors for downstream
         Object.assign(baseCors, al2.headers);
       }
-
-      // Aliases 302
-      const settingsForAlias = buildSettings(env);
-      if (settingsForAlias.aliases && settingsForAlias.aliases[pathname]) {
-        const target = settingsForAlias.aliases[pathname];
+      const effectiveSettings = applyOverlayToSettings(buildSettings(env), overlay);
+      if (effectiveSettings.aliases && effectiveSettings.aliases[pathname]) {
+        const target = effectiveSettings.aliases[pathname];
         const h = { ...baseCors, Location: target };
         return new Response('', { status: 302, headers: h });
       }
 
-      // Main converter routes
       const isSub = pathname === '/sub' && (method === 'GET' || method === 'HEAD');
       const isSub2ClashR = pathname === '/sub2clashr' && method === 'GET';
       const isSurge2Clash = pathname === '/surge2clash' && method === 'GET';
 
       if (isSub || isSub2ClashR || isSurge2Clash) {
-        // Normalize target for shortcuts
         if (isSub2ClashR) url.searchParams.set('target', 'clashr');
         if (isSurge2Clash) {
-          // Surge to clash: treat as clash but source is surge conf text
-          // For MVP just set target clash and let explodeSub handle surge text
           if (!url.searchParams.get('target')) url.searchParams.set('target', 'clash');
         }
-
-        const result = await handleSub(url, env, request);
+        const result = await handleSub(url, effectiveEnv, request, effectiveSettings);
         const h = mergeHeaders(baseCors, result.headers);
-        // Ensure Content-Type for success
         if (!h['Content-Type']) h['Content-Type'] = 'text/plain;charset=utf-8';
-
         if (method === 'HEAD') {
           return new Response(null, { status: result.status, headers: h });
         }
         return new Response(result.body, { status: result.status, headers: h });
       }
 
-      // Not found
       return new Response('Not Found', { status: 404, headers: baseCors });
     } catch (e) {
       const h = corsHeaders(request);
