@@ -90,19 +90,20 @@ export function checkAllowlist(request: Request, env: DashboardEnv): { allowed: 
       else if (normalized.includes(referer.toLowerCase())) allowed = true;
     }
   }
-
-  if (allowed) {
-    // ACAO must be the request Origin, and Vary: Origin
-    const acAO = origin || list[0];
-    return { allowed: true, headers: { 'Access-Control-Allow-Origin': acAO, Vary: 'Origin' } };
+  if (!allowed && !origin && !referer) {
+    allowed = true;
   }
-
-  // blocked: no ACAO, log conceptually
-  try { console.log('[allowlist] blocked_by_allowlist', { origin, referer }); } catch {}
+  if (!allowed) {
+    try { console.log('[allowlist] blocked_by_allowlist', { origin, referer }); } catch {}
+    return {
+      allowed: false,
+      headers: {},
+      response: json({ error: 'blocked_by_allowlist', code: 'blocked_by_allowlist' }, 403),
+    };
+  }
   return {
-    allowed: false,
-    headers: {},
-    response: json({ error: 'blocked_by_allowlist', code: 'blocked_by_allowlist' }, 403),
+    allowed: true,
+    headers: { 'Access-Control-Allow-Origin': origin || list[0], Vary: 'Origin' },
   };
 }
 
