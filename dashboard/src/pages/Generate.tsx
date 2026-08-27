@@ -29,10 +29,10 @@ const TARGETS = [
 ] as const;
 
 const REMOTE_CONFIGS = [
-  { value: "", label: "Default (no remote config)" },
+  { value: "", label: "默认（无远程配置）" },
   { value: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online.ini", label: "ACL4SSR — Online" },
   { value: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Mini.ini", label: "ACL4SSR — Mini" },
-  { value: "custom", label: "Custom URL…" },
+  { value: "custom", label: "自定义链接…" },
 ] as const;
 
 export default function GeneratePage() {
@@ -133,18 +133,18 @@ export default function GeneratePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Generate</h1>
-        <p className="text-sm text-[rgb(0_0_0/44%)]">Build subscription links. Local generation — no short link service.</p>
+        <p className="text-sm text-[rgb(0_0_0/44%)]">构建订阅链接，本地生成，无需短链服务。</p>
       </div>
 
-      {/* Source */}
+      {/* 订阅源 */}
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
-          <CardTitle>Source</CardTitle>
-          <CardDescription>Subscription links, one per line. Remote config selects server-side presets.</CardDescription>
+          <CardTitle>订阅源</CardTitle>
+          <CardDescription>订阅链接，每行一条，远程配置选择服务端预设。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="source">Subscription URL</Label>
+            <Label htmlFor="source">订阅链接</Label>
             <Textarea
               id="source"
               placeholder={"https://example.com/sub1\nhttps://example.com/sub2"}
@@ -152,15 +152,15 @@ export default function GeneratePage() {
               onChange={(e) => setSource(e.target.value)}
               className="rounded-[8px] font-mono text-xs"
             />
-            <p className="text-xs text-[rgb(0_0_0/44%)]">Multiple URLs separated by newline or pipe. Supports data: and tag: prefixes.</p>
+            <p className="text-xs text-[rgb(0_0_0/44%)]">多链接用换行或 | 分隔，支持 data: 与 tag: 前缀。</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="remote-config">Remote config</Label>
+            <Label htmlFor="remote-config">远程配置</Label>
             <Select
               id="remote-config"
               value={config}
               onChange={(e) => handleConfigChange(e.target.value)}
-              aria-label="Remote config"
+              aria-label="远程配置"
             >
               {REMOTE_CONFIGS.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -184,16 +184,16 @@ export default function GeneratePage() {
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
           <CardTitle>Target</CardTitle>
-          <CardDescription>Choose output format. Advanced options are collapsed by default.</CardDescription>
+          <CardDescription>选择输出格式，高级选项默认收起。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="target">Target client</Label>
+            <Label htmlFor="target">目标客户端</Label>
             <Select
               id="target"
               value={target}
               onChange={(e) => setTarget(e.target.value as typeof target)}
-              aria-label="Target client"
+              aria-label="目标客户端"
             >
               {TARGETS.map((t) => (
                 <option key={t} value={t}>
@@ -209,19 +209,19 @@ export default function GeneratePage() {
             <CollapsibleContent>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="include" className="text-xs font-medium text-[rgb(0_0_0/64%)]">Include (RegExp)</Label>
+                  <Label htmlFor="include" className="text-xs font-medium text-[rgb(0_0_0/64%)]">包含（正则）</Label>
                   <Input id="include" placeholder="HK|JP" value={include} onChange={(e) => setInclude(e.target.value)} className="rounded-[8px]" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="exclude" className="text-xs font-medium text-[rgb(0_0_0/64%)]">Exclude (RegExp)</Label>
+                  <Label htmlFor="exclude" className="text-xs font-medium text-[rgb(0_0_0/64%)]">排除（正则）</Label>
                   <Input id="exclude" placeholder="x1|expired" value={exclude} onChange={(e) => setExclude(e.target.value)} className="rounded-[8px]" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="filename" className="text-xs font-medium text-[rgb(0_0_0/64%)]">Filename</Label>
+                  <Label htmlFor="filename" className="text-xs font-medium text-[rgb(0_0_0/64%)]">文件名</Label>
                   <Input id="filename" placeholder="profile" value={filename} onChange={(e) => setFilename(e.target.value)} className="rounded-[8px]" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="custom-params" className="text-xs font-medium text-[rgb(0_0_0/64%)]">Custom params</Label>
+                  <Label htmlFor="custom-params" className="text-xs font-medium text-[rgb(0_0_0/64%)]">自定义参数</Label>
                   <Input
                     id="custom-params"
                     placeholder="rename=Group&interval=86400"
@@ -263,33 +263,33 @@ export default function GeneratePage() {
                 </label>
               </div>
               <p className="mt-3 text-xs leading-relaxed text-[rgb(0_0_0/44%)]">
-                SCV — skip cert verify · FDN — filter deprecated nodes · Expand — expand ruleset.
+                跳过证书验证 · 过滤废弃节点 · 展开规则集。
               </p>
             </CollapsibleContent>
           </Collapsible>
 
           <Button onClick={handleGenerate} className="rounded-[8px] bg-zinc-900 text-white hover:bg-zinc-800">
-            Generate link
+            生成链接
           </Button>
         </CardContent>
       </Card>
 
-      {/* Output */}
+      {/* 输出 */}
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
-          <CardTitle>Output</CardTitle>
-          <CardDescription>Backend is <code className="font-mono text-xs">{backendBase}</code> (managedPrefix). Copy the generated link.</CardDescription>
+          <CardTitle>输出</CardTitle>
+          <CardDescription>Backend is <code className="font-mono text-xs">{backendBase}</code> (managedPrefix). 复制 the generated link.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
-            <Input readOnly value={output} placeholder="Generate to see link" className="rounded-[8px] font-mono text-xs" />
+            <Input readOnly value={output} placeholder="生成后显示链接" className="rounded-[8px] font-mono text-xs" />
             <Button variant="outline" onClick={handleCopy} disabled={!output} className="shrink-0 rounded-[8px]">
-              {copied ? "Copied" : "Copy"}
+              {copied ? "已复制" : "复制"}
             </Button>
           </div>
           {output ? (
             <Collapsible defaultOpen={false} className="rounded-[8px]">
-              <CollapsibleTrigger>Preview</CollapsibleTrigger>
+              <CollapsibleTrigger>预览</CollapsibleTrigger>
               <CollapsibleContent>
                 <p className="break-all font-mono text-xs leading-relaxed text-[rgb(0_0_0/64%)]">{output}</p>
               </CollapsibleContent>

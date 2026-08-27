@@ -48,13 +48,13 @@ const ALLOWLIST: AllowlistEntry[] = [
   {
     key: "MANAGED_PREFIX",
     label: "Managed Prefix",
-    placeholder: "https://sub.example.com",
+    placeholder: "https://sub.ctelspecu.hxcn.top",
     description: "Prefix for write_managed_config / MANAGED-CONFIG",
     control: "text",
   },
   {
     key: "FRONTEND_ALLOWLIST",
-    label: "Frontend Allowlist",
+    label: "Frontend 白名单",
     placeholder: "https://example.com, https://app.example.com",
     description: "Comma separated allowed origins (empty = allow all)",
     control: "textarea",
@@ -202,7 +202,7 @@ export default function ConfigPage() {
       });
       const body = await res.json().catch(() => ({} as Record<string, unknown>));
       if (!res.ok) {
-        const msg = (body as Record<string, unknown>).error ?? (body as Record<string, unknown>).message ?? `Save failed (${res.status})`;
+        const msg = (body as Record<string, unknown>).error ?? (body as Record<string, unknown>).message ?? `保存 failed (${res.status})`;
         setSaveError(String(msg));
         return;
       }
@@ -230,7 +230,7 @@ export default function ConfigPage() {
         // ignore refresh failure
       }
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Save failed. Check network.");
+      setSaveError(e instanceof Error ? e.message : "保存 failed. Check network.");
     } finally {
       setSaving(false);
     }
@@ -240,12 +240,12 @@ export default function ConfigPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-semibold">Config</h1>
-        <p className="text-sm text-[rgb(0_0_0/44%)]">buildSettings snapshot — read-only with controlled overlay.</p>
+        <p className="text-sm text-[rgb(0_0_0/44%)]">构建设置快照 — 只读，支持受控覆盖。</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Settings snapshot</CardTitle>
+          <CardTitle>配置快照</CardTitle>
           <CardDescription>JSON mono + copy. Edits write to KV_ADMIN:config:overlay.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -261,7 +261,7 @@ export default function ConfigPage() {
           ) : null}
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleCopy}>
-              {copied ? "Copied" : "Copy"}
+              {copied ? "已复制" : "复制"}
             </Button>
             <span className="text-xs text-[rgb(0_0_0/44%)]">Read-only. Overlay overrides at runtime with allowlist keys only.</span>
           </div>
@@ -270,9 +270,9 @@ export default function ConfigPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Controlled overlay</CardTitle>
+          <CardTitle>受控覆盖</CardTitle>
           <CardDescription>
-            Whitelist keys only. Saved to <span className="font-mono text-xs">KV_ADMIN:config:overlay</span>. Empty values are ignored.
+            白名单 keys only. Saved to <span className="font-mono text-xs">KV_ADMIN:config:overlay</span>. Empty values are ignored.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -334,7 +334,7 @@ export default function ConfigPage() {
 
           <div className="flex items-center gap-2">
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving…" : "Save overlay"}
+              {saving ? "保存中…" : "保存覆盖"}
             </Button>
             <Button
               variant="outline"
@@ -351,7 +351,7 @@ export default function ConfigPage() {
                 setSaved(false);
               }}
             >
-              Clear
+              清空
             </Button>
           </div>
 

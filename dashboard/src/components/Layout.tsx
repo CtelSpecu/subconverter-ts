@@ -16,14 +16,14 @@ import {
 
 const navGroups: { label: string; items: { to: string; label: string; icon: React.ElementType }[] }[] = [
   {
-    label: "Convert",
+    label: "转换",
     items: [
       { to: "/dashboard/generate", label: "Generate", icon: FileText },
       { to: "/dashboard/debug", label: "Debug", icon: Bug },
     ],
   },
   {
-    label: "Operate",
+    label: "运维",
     items: [
       { to: "/dashboard/domains", label: "Domains", icon: Globe },
       { to: "/dashboard/acl", label: "ACL", icon: Shield },
@@ -33,7 +33,7 @@ const navGroups: { label: string; items: { to: string; label: string; icon: Reac
     ],
   },
   {
-    label: "System",
+    label: "系统",
     items: [{ to: "/dashboard/config", label: "Config", icon: Settings }],
   },
 ];

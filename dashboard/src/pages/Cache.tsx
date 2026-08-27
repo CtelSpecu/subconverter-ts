@@ -43,7 +43,7 @@ export default function CachePage() {
       if (!res.ok) throw new Error((body as any).error || `HTTP ${res.status}`);
       setStatus("Flushed");
       await fetchStats();
-    } catch(e:any){ setStatus(e?.message||"Flush failed"); }
+    } catch(e:any){ setStatus(e?.message||"清空 failed"); }
     finally { setBusy(false); setFlushOpen(false); }
   }
   async function handleRefresh() {
@@ -54,7 +54,7 @@ export default function CachePage() {
       if (!res.ok) throw new Error((body as any).error || `HTTP ${res.status}`);
       setStatus("Refreshed");
       await fetchStats();
-    } catch(e:any){ setStatus(e?.message||"Refresh failed"); }
+    } catch(e:any){ setStatus(e?.message||"刷新 failed"); }
     finally { setBusy(false); setRefreshOpen(false); }
   }
 
@@ -62,26 +62,26 @@ export default function CachePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Cache</h1>
-        <p className="text-sm text-[rgb(0_0_0/44%)]">In-memory + KV stats. Real data from /dashboard/api/cache.</p>
+        <p className="text-sm text-[rgb(0_0_0/44%)]">内存 + KV 统计，来自真实接口。</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="rounded-[8px] border shadow-none">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Entries</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">条目</CardTitle></CardHeader>
           <CardContent>
             {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">Loading…</div> : error ? <div className="text-sm text-red-600">{error}</div> : <div className="text-2xl font-semibold">{stats?.entries ?? 0}</div>}
             <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">KV CACHE keys (0–1000 sampled)</p>
           </CardContent>
         </Card>
         <Card className="rounded-[8px] border shadow-none">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Hit rate</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">命中率</CardTitle></CardHeader>
           <CardContent>
             {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">—</div> : <div className="text-2xl font-semibold">{stats?.hitRate==null ? "—" : `${stats.hitRate}%`}</div>}
             <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">Not tracked (in-memory Map)</p>
           </CardContent>
         </Card>
         <Card className="rounded-[8px] border shadow-none">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Rulesets</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">规则集</CardTitle></CardHeader>
           <CardContent>
             {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">—</div> : <div className="text-2xl font-semibold">{stats?.rulesets ?? 0}</div>}
             <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">Cached remote configs</p>
@@ -94,19 +94,19 @@ export default function CachePage() {
 
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
-          <CardTitle>Actions</CardTitle>
-          <CardDescription>Flush clears in-memory and up to 1000 KV keys. Refresh re-warms.</CardDescription>
+          <CardTitle>操作</CardTitle>
+          <CardDescription>清空 clears in-memory and up to 1000 KV keys. 刷新 re-warms.</CardDescription>
         </CardHeader>
         <CardContent className="flex gap-2">
-          <Button variant="outline" onClick={()=>setFlushOpen(true)} disabled={busy} className="rounded-[8px]">Flush</Button>
-          <Button onClick={()=>setRefreshOpen(true)} disabled={busy} className="rounded-[8px] bg-zinc-900 text-white hover:bg-zinc-800">Refresh</Button>
-          <Button variant="ghost" onClick={fetchStats} disabled={loading} className="rounded-[8px]">Reload</Button>
+          <Button variant="outline" onClick={()=>setFlushOpen(true)} disabled={busy} className="rounded-[8px]">清空</Button>
+          <Button onClick={()=>setRefreshOpen(true)} disabled={busy} className="rounded-[8px] bg-zinc-900 text-white hover:bg-zinc-800">刷新</Button>
+          <Button variant="ghost" onClick={fetchStats} disabled={loading} className="rounded-[8px]">刷新</Button>
         </CardContent>
       </Card>
 
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
-          <CardTitle>Rulesets</CardTitle>
+          <CardTitle>规则集</CardTitle>
           <CardDescription>Currently no per-ruleset breakdown; backend reports totals.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -119,15 +119,15 @@ export default function CachePage() {
 
       <AlertDialog open={flushOpen} onOpenChange={setFlushOpen}>
         <AlertDialogContent className="rounded-[8px]">
-          <AlertDialogHeader><AlertDialogTitle>Flush cache?</AlertDialogTitle><AlertDialogDescription> Clears in-memory and up to 1000 KV entries.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel className="rounded-[8px]">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleFlush} className="rounded-[8px] bg-red-600 hover:bg-red-700">Flush</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>清空 cache?</AlertDialogTitle><AlertDialogDescription> Clears in-memory and up to 1000 KV entries.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel className="rounded-[8px]">取消</AlertDialogCancel><AlertDialogAction onClick={handleFlush} className="rounded-[8px] bg-red-600 hover:bg-red-700">清空</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       <AlertDialog open={refreshOpen} onOpenChange={setRefreshOpen}>
         <AlertDialogContent className="rounded-[8px]">
-          <AlertDialogHeader><AlertDialogTitle>Refresh cache?</AlertDialogTitle><AlertDialogDescription> Flush then re-warm.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel className="rounded-[8px]">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleRefresh} className="rounded-[8px]">Refresh</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>刷新 cache?</AlertDialogTitle><AlertDialogDescription> 清空 then re-warm.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel className="rounded-[8px]">取消</AlertDialogCancel><AlertDialogAction onClick={handleRefresh} className="rounded-[8px]">刷新</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

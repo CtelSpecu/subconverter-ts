@@ -58,10 +58,10 @@ export default function DomainsPage() {
     try {
       const res = await fetch("/dashboard/api/domains", { method: "POST", headers: { ...authHeaders(), "Content-Type":"application/json" }, body: JSON.stringify({ domain: v, remark: remarkInput.trim() }) });
       const body = await res.json().catch(()=>({}));
-      if (!res.ok) { setActionError((body as any).error || `Add failed ${res.status}`); return; }
+      if (!res.ok) { setActionError((body as any).error || `添加 failed ${res.status}`); return; }
       setDomainInput(""); setRemarkInput(""); setConfirmChecked(false); setAddOpen(false);
       await fetchDomains();
-    } catch (e:any){ setActionError(e?.message||"Add failed"); }
+    } catch (e:any){ setActionError(e?.message||"添加 failed"); }
   };
   const handleDelete = async () => {
     if (!deleteTarget || !deleteConfirm) return;
@@ -69,10 +69,10 @@ export default function DomainsPage() {
     try {
       const res = await fetch(`/dashboard/api/domains/${encodeURIComponent(deleteTarget.domain)}`, { method: "DELETE", headers: authHeaders() });
       const body = await res.json().catch(()=>({}));
-      if (!res.ok) { setActionError((body as any).error || `Delete failed ${res.status}`); return; }
+      if (!res.ok) { setActionError((body as any).error || `删除 failed ${res.status}`); return; }
       setDeleteTarget(null); setDeleteConfirm(false);
       await fetchDomains();
-    } catch (e:any){ setActionError(e?.message||"Delete failed"); }
+    } catch (e:any){ setActionError(e?.message||"删除 failed"); }
   };
 
   return (
@@ -80,32 +80,32 @@ export default function DomainsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Domains</h1>
-          <p className="text-sm text-[rgb(0_0_0/44%)]">Frontend allowlist and managed prefix. Real KV data.</p>
+          <p className="text-sm text-[rgb(0_0_0/44%)]">前端白名单与管理前缀，真实 KV 数据。</p>
         </div>
-        <Button onClick={()=>setAddOpen(true)} className="rounded-[8px]">Add domain</Button>
+        <Button onClick={()=>setAddOpen(true)} className="rounded-[8px]">添加域名</Button>
       </div>
 
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
-          <CardTitle>Managed prefix</CardTitle>
-          <CardDescription>Backend used by Generate. From env MANAGED_PREFIX.</CardDescription>
+          <CardTitle>管理前缀</CardTitle>
+          <CardDescription>生成页使用的后端，来自环境变量 MANAGED_PREFIX。</CardDescription>
         </CardHeader>
         <CardContent className="flex gap-2">
           <Input readOnly value={managedPrefix} placeholder={loading?"Loading…":"—"} className="rounded-[8px] font-mono text-xs" />
-          <Button variant="outline" onClick={handleCopy} className="shrink-0 rounded-[8px]">{copied?"Copied":"Copy"}</Button>
+          <Button variant="outline" onClick={handleCopy} className="shrink-0 rounded-[8px]">{copied?"已复制":"复制"}</Button>
         </CardContent>
       </Card>
 
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
-          <CardTitle>Allowlist</CardTitle>
+          <CardTitle>白名单</CardTitle>
           <CardDescription>{loading?"Loading…":`${allowlist.length} entries — empty allowlist means open (*). Non-empty enforces CORS + API check`}</CardDescription>
         </CardHeader>
         <CardContent>
           {error ? <div className="mb-3 rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
           {actionError ? <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{actionError}</div> : null}
           {loading ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
-          allowlist.length===0 ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">No domains yet. Add one to restrict.</div> :
+          allowlist.length===0 ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">No domains yet. 添加 one to restrict.</div> :
           <Table>
             <TableHeader><TableRow><TableHead>Domain</TableHead><TableHead>Remark</TableHead><TableHead>Added</TableHead><TableHead className="w-[80px]"></TableHead></TableRow></TableHeader>
             <TableBody>
@@ -114,7 +114,7 @@ export default function DomainsPage() {
                   <TableCell className="font-mono text-xs">{e.domain}</TableCell>
                   <TableCell className="text-xs text-[rgb(0_0_0/64%)]">{e.remark||"—"}</TableCell>
                   <TableCell className="text-xs">{formatDate(e.addedAt)}</TableCell>
-                  <TableCell><Button variant="ghost" size="sm" onClick={()=>{setDeleteTarget(e); setDeleteConfirm(false);}} className="h-7 text-xs text-red-600 hover:bg-red-50">Delete</Button></TableCell>
+                  <TableCell><Button variant="ghost" size="sm" onClick={()=>{setDeleteTarget(e); setDeleteConfirm(false);}} className="h-7 text-xs text-red-600 hover:bg-red-50">删除</Button></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -125,13 +125,13 @@ export default function DomainsPage() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         {addOpen ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={()=>setAddOpen(false)}>
           <div className="w-full max-w-md rounded-[8px] bg-white p-6 shadow-lg" onClick={e=>e.stopPropagation()}>
-            <DialogHeader><DialogTitle>Add domain</DialogTitle><DialogDescription>Domain will be stored in KV ADMIN allowlist.</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>添加域名</DialogTitle><DialogDescription>域名将写入 KV 白名单。</DialogDescription></DialogHeader>
             <div className="mt-4 space-y-3">
-              <Input placeholder="sub.example.com" value={domainInput} onChange={e=>setDomainInput(e.target.value)} className="rounded-[8px] font-mono text-xs" />
+              <Input placeholder="sub.ctelspecu.hxcn.top" value={domainInput} onChange={e=>setDomainInput(e.target.value)} className="rounded-[8px] font-mono text-xs" />
               <Input placeholder="remark (optional)" value={remarkInput} onChange={e=>setRemarkInput(e.target.value)} className="rounded-[8px] text-xs" />
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={confirmChecked} onChange={e=>setConfirmChecked(e.target.checked)} /> I confirm</label>
             </div>
-            <DialogFooter><Button variant="outline" onClick={()=>setAddOpen(false)} className="rounded-[8px]">Cancel</Button><Button onClick={handleAdd} disabled={!domainInput.trim()||!confirmChecked} className="rounded-[8px]">Add</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={()=>setAddOpen(false)} className="rounded-[8px]">取消</Button><Button onClick={handleAdd} disabled={!domainInput.trim()||!confirmChecked} className="rounded-[8px]">添加</Button></DialogFooter>
           </div>
         </div> : null}
       </Dialog>
@@ -139,9 +139,9 @@ export default function DomainsPage() {
       <Dialog open={!!deleteTarget} onOpenChange={(o)=>{ if(!o){setDeleteTarget(null); setDeleteConfirm(false);} }}>
         {deleteTarget ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={()=>{setDeleteTarget(null); setDeleteConfirm(false);}}>
           <div className="w-full max-w-md rounded-[8px] bg-white p-6 shadow-lg" onClick={e=>e.stopPropagation()}>
-            <DialogHeader><DialogTitle>Delete {deleteTarget.domain}?</DialogTitle><DialogDescription>This will remove the domain from allowlist.</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>删除 {deleteTarget.domain}?</DialogTitle><DialogDescription>This will remove the domain from allowlist.</DialogDescription></DialogHeader>
             <label className="mt-3 flex items-center gap-2 text-xs"><input type="checkbox" checked={deleteConfirm} onChange={e=>setDeleteConfirm(e.target.checked)} /> Confirm delete</label>
-            <DialogFooter><Button variant="outline" onClick={()=>{setDeleteTarget(null); setDeleteConfirm(false);}} className="rounded-[8px]">Cancel</Button><Button variant="destructive" onClick={handleDelete} disabled={!deleteConfirm} className="rounded-[8px]">Delete</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={()=>{setDeleteTarget(null); setDeleteConfirm(false);}} className="rounded-[8px]">取消</Button><Button variant="destructive" onClick={handleDelete} disabled={!deleteConfirm} className="rounded-[8px]">删除</Button></DialogFooter>
           </div>
         </div> : null}
       </Dialog>

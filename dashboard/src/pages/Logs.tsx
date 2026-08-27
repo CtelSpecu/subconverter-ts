@@ -98,7 +98,7 @@ export default function LogsPage() {
       if (!res.ok) throw new Error((j as any).error || `HTTP ${res.status}`);
       setRetentionSaved(retention);
       await fetchLogs(page);
-    } catch(e:any){ setError(e?.message||"Save failed"); }
+    } catch(e:any){ setError(e?.message||"保存 failed"); }
     finally { setBusy(false); }
   }
   function openDetail(row: LogRow) { setSelected(row); setSheetOpen(true); }
@@ -121,20 +121,20 @@ export default function LogsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Logs</h1>
-          <p className="text-sm text-[rgb(0_0_0/44%)]">Real D1 logs — search, filter, retention, export. Total {total}.</p>
+          <p className="text-sm text-[rgb(0_0_0/44%)]">真实 D1 日志 — 支持搜索、筛选、保留与导出，共 {total}.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={()=>fetchLogs(page)} disabled={loading} className="rounded-[8px]">Refresh</Button>
-          <Button variant="outline" onClick={handleExportCsv} disabled={busy} className="rounded-[8px]">Export CSV</Button>
+          <Button variant="outline" onClick={()=>fetchLogs(page)} disabled={loading} className="rounded-[8px]">刷新</Button>
+          <Button variant="outline" onClick={handleExportCsv} disabled={busy} className="rounded-[8px]">导出 CSV</Button>
         </div>
       </div>
       {error ? <div className="rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
       <Card className="rounded-[8px] border shadow-none">
-        <CardHeader><CardTitle className="text-sm">Filters</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">筛选</CardTitle></CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-4">
           <Input placeholder="search ip or target" value={search} onChange={e=>setSearch(e.target.value)} className="rounded-[8px]" />
           <select value={target} onChange={e=>setTarget(e.target.value)} className="rounded-[8px] border px-2 py-2 text-sm">
-            <option value="all">All targets</option>
+            <option value="all">全部目标</option>
             <option value="clash">clash</option>
             <option value="surge">surge</option>
             <option value="quan">quan</option>
@@ -142,7 +142,7 @@ export default function LogsPage() {
             <option value="mixed">mixed</option>
           </select>
           <select value={status} onChange={e=>setStatus(e.target.value)} className="rounded-[8px] border px-2 py-2 text-sm">
-            <option value="all">All status</option>
+            <option value="all">全部状态</option>
             <option value="200">200</option>
             <option value="400">400</option>
             <option value="500">500</option>
@@ -154,9 +154,9 @@ export default function LogsPage() {
             <select value={retention} onChange={e=>setRetention(e.target.value)} className="rounded-[8px] border px-2 py-2 text-sm flex-1">
               <option value="7">7d</option><option value="30">30d</option><option value="90">90d</option><option value="180">180d</option><option value="365">365d</option>
             </select>
-            <Button variant="outline" onClick={handleRetentionSave} disabled={busy || retention===retentionSaved} className="rounded-[8px]">Save {retention} {retention===retentionSaved?"✓":""}</Button>
+            <Button variant="outline" onClick={handleRetentionSave} disabled={busy || retention===retentionSaved} className="rounded-[8px]">保存 {retention} {retention===retentionSaved?"✓":""}</Button>
           </div>
-          <div className="text-xs text-[rgb(0_0_0/44%)]">Next purge {nextPurgeAt} — retention auto deletes older logs.</div>
+          <div className="text-xs text-[rgb(0_0_0/44%)]">下一页 purge {nextPurgeAt} — retention auto deletes older logs.</div>
         </CardContent>
       </Card>
 
@@ -175,8 +175,8 @@ export default function LogsPage() {
                    <TableCell><Badge variant={statusVariant(Number(row.status))}>{row.status}</Badge></TableCell>
                    <TableCell className="text-xs">{row.duration ?? "—"} ms</TableCell>
                    <TableCell className="flex gap-1">
-                     <Button variant="ghost" size="sm" onClick={()=>openDetail(row)} className="h-7 text-xs">Detail</Button>
-                     {row.ip ? <Button variant="ghost" size="sm" onClick={()=>handleBlockIp(String(row.ip))} className="h-7 text-xs text-red-600">Block IP</Button> : null}
+                     <Button variant="ghost" size="sm" onClick={()=>openDetail(row)} className="h-7 text-xs">详情</Button>
+                     {row.ip ? <Button variant="ghost" size="sm" onClick={()=>handleBlockIp(String(row.ip))} className="h-7 text-xs text-red-600">封禁 IP</Button> : null}
                    </TableCell>
                  </TableRow>
                ))}
@@ -185,8 +185,8 @@ export default function LogsPage() {
           <div className="flex items-center justify-between p-3 border-t">
             <div className="text-xs text-[rgb(0_0_0/44%)]">Page {page} — {filteredCount} total {hasMore?"(more)":""}</div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page<=1} onClick={()=>{ const p=page-1; setPage(p); fetchLogs(p); }} className="rounded-[8px]">Prev</Button>
-              <Button variant="outline" size="sm" disabled={!hasMore} onClick={()=>{ const p=page+1; setPage(p); fetchLogs(p); }} className="rounded-[8px]">Next</Button>
+              <Button variant="outline" size="sm" disabled={page<=1} onClick={()=>{ const p=page-1; setPage(p); fetchLogs(p); }} className="rounded-[8px]">上一页</Button>
+              <Button variant="outline" size="sm" disabled={!hasMore} onClick={()=>{ const p=page+1; setPage(p); fetchLogs(p); }} className="rounded-[8px]">下一页</Button>
             </div>
           </div>
         </CardContent>

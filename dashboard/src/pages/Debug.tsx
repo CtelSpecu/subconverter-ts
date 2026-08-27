@@ -62,20 +62,20 @@ export default function DebugPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-semibold">Debug</h1>
-        <p className="text-sm text-[rgb(0_0_0/44%)]">Single link parse preview.</p>
+        <p className="text-sm text-[rgb(0_0_0/44%)]">单链接解析预览。</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Node link</CardTitle>
-          <CardDescription>Paste one link, preview proxy JSON, Clash/Surge.</CardDescription>
+          <CardTitle>节点链接</CardTitle>
+          <CardDescription>粘贴单条链接，预览代理 JSON、Clash/Surge。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea placeholder="ss://... or vmess://... (single link only)" value={input} onChange={(e) => setInput(e.target.value)} rows={4} />
           <div className="flex items-center gap-2">
             <Button onClick={handleParse}>Parse</Button>
             <Button variant="outline" onClick={() => { setInput(""); setResult(null); setError(null); }}>
-              Clear
+              清空
             </Button>
           </div>
 

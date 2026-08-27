@@ -97,7 +97,7 @@ export default function AclPage() {
       }
       setDialogOpen(false);
       await fetchAcl();
-    } catch(e:any){ setError(e?.message||"Save failed"); }
+    } catch(e:any){ setError(e?.message||"保存 failed"); }
     finally { setBusy(false); }
   };
   const handleDelete = async (tab: TabKey, value: string) => {
@@ -106,7 +106,7 @@ export default function AclPage() {
       const res = await fetch(`/dashboard/api/acl/${tab}`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ value, action: "remove" }) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchAcl();
-    } catch(e:any){ setError(e?.message||"Delete failed"); }
+    } catch(e:any){ setError(e?.message||"删除 failed"); }
     finally { setBusy(false); }
   };
 
@@ -114,11 +114,11 @@ export default function AclPage() {
     <Card className="rounded-[8px] border shadow-none">
       <CardHeader className="flex flex-row items-center justify-between">
         <div><CardTitle className="text-sm">{label}</CardTitle><CardDescription className="text-xs">{data[tab].length} entries</CardDescription></div>
-        <Button size="sm" onClick={()=>openAdd(tab)} className="rounded-[8px] h-7 text-xs">Add</Button>
+        <Button size="sm" onClick={()=>openAdd(tab)} className="rounded-[8px] h-7 text-xs">添加</Button>
       </CardHeader>
       <CardContent>
         {loading ? <div className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
-         data[tab].length===0 ? <div className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">No entries. Add one.</div> :
+         data[tab].length===0 ? <div className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">No entries. 添加 one.</div> :
          <Table>
            <TableHeader><TableRow><TableHead>Value</TableHead><TableHead className="w-[100px]"></TableHead></TableRow></TableHeader>
            <TableBody>
@@ -126,8 +126,8 @@ export default function AclPage() {
                <TableRow key={val}>
                  <TableCell className="font-mono text-xs break-all">{val}</TableCell>
                  <TableCell className="flex gap-1">
-                   <Button variant="ghost" size="sm" onClick={()=>openEdit(tab, val)} className="h-7 text-xs">Edit</Button>
-                   <Button variant="ghost" size="sm" onClick={()=>handleDelete(tab, val)} disabled={busy} className="h-7 text-xs text-red-600 hover:bg-red-50">Delete</Button>
+                   <Button variant="ghost" size="sm" onClick={()=>openEdit(tab, val)} className="h-7 text-xs">编辑</Button>
+                   <Button variant="ghost" size="sm" onClick={()=>handleDelete(tab, val)} disabled={busy} className="h-7 text-xs text-red-600 hover:bg-red-50">删除</Button>
                  </TableCell>
                </TableRow>
              ))}
@@ -141,39 +141,38 @@ export default function AclPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">ACL</h1>
-        <p className="text-sm text-[rgb(0_0_0/44%)]">Real KV data. Black/white switches control filtering.</p>
+        <p className="text-sm text-[rgb(0_0_0/44%)]">真实 KV 数据，黑白名单开关控制过滤。</p>
       </div>
       {error ? <div className="rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
       <Card className="rounded-[8px] border shadow-none">
         <CardContent className="flex gap-6 py-4">
-          <label className="flex items-center gap-2 text-sm"><Switch checked={enableBlacklist} onCheckedChange={toggleBlack} disabled={busy} /> Blacklist {enableBlacklist?"on":"off"}</label>
-          <label className="flex items-center gap-2 text-sm"><Switch checked={enableWhitelist} onCheckedChange={toggleWhite} disabled={busy} /> Whitelist {enableWhitelist?"on":"off"}</label>
-          <Button variant="ghost" size="sm" onClick={fetchAcl} disabled={loading} className="ml-auto rounded-[8px]">Reload</Button>
+          <label className="flex items-center gap-2 text-sm"><Switch checked={enableBlacklist} onCheckedChange={toggleBlack} disabled={busy} /> 黑名单 {enableBlacklist?"on":"off"}</label>
+          <label className="flex items-center gap-2 text-sm"><Switch checked={enableWhitelist} onCheckedChange={toggleWhite} disabled={busy} /> 白名单 {enableWhitelist?"on":"off"}</label>
+          <Button variant="ghost" size="sm" onClick={fetchAcl} disabled={loading} className="ml-auto rounded-[8px]">刷新</Button>
         </CardContent>
       </Card>
 
       <Tabs value={active} onValueChange={(v)=>setActive(v as TabKey)}>
         <TabsList className="rounded-[8px]">
           <TabsTrigger value="ip">IP</TabsTrigger>
-          <TabsTrigger value="domain">Domain</TabsTrigger>
-          <TabsTrigger value="ua">UA</TabsTrigger>
-          <TabsTrigger value="remark">Remark</TabsTrigger>
+          <TabsTrigger value="domain">域名</TabsTrigger>
+          <TabsTrigger value="ua">用户代理</TabsTrigger>
+          <TabsTrigger value="remark">备注</TabsTrigger>
         </TabsList>
-        <TabsContent value="ip" className="mt-4">{renderTable("ip","IP blacklist/whitelist")}</TabsContent>
-        <TabsContent value="domain" className="mt-4">{renderTable("domain","Domain")}</TabsContent>
-        <TabsContent value="ua" className="mt-4">{renderTable("ua","User-Agent regex")}</TabsContent>
-        <TabsContent value="remark" className="mt-4">{renderTable("remark","Remark filter")}</TabsContent>
+        <TabsContent value="ip" className="mt-4">{renderTable("ip","IP 黑白名单")}</TabsContent>
+        <TabsContent value="ua" className="mt-4">{renderTable("ua","用户代理 正则")}</TabsContent>
+        <TabsContent value="remark" className="mt-4">{renderTable("remark","备注过滤")}</TabsContent>
       </Tabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         {dialogOpen ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={()=>setDialogOpen(false)}>
           <div className="w-full max-w-md rounded-[8px] bg-white p-6 shadow-lg" onClick={e=>e.stopPropagation()}>
-            <DialogHeader><DialogTitle>{editing?"Edit":"Add"} {dialogTab}</DialogTitle><DialogDescription>{editing ? `Editing ${editing}` : `Add new ${dialogTab} entry`}</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>{editing?"编辑":"添加"} {dialogTab}</DialogTitle><DialogDescription>{editing ? `正在编辑 ${editing}` : `添加新的 ${dialogTab} 条目`}</DialogDescription></DialogHeader>
             <div className="mt-4 space-y-3">
-              <Input placeholder="value (IP, domain, regex…)" value={draftValue} onChange={e=>setDraftValue(e.target.value)} className="rounded-[8px] font-mono text-xs" />
-              <Input placeholder="note (optional, stored locally)" value={draftNote} onChange={e=>setDraftNote(e.target.value)} className="rounded-[8px] text-xs" />
+              <Input placeholder="值（IP、域名、正则…）" value={draftValue} onChange={e=>setDraftValue(e.target.value)} className="rounded-[8px] font-mono text-xs" />
+              <Input placeholder="备注（可选，本地存储）" value={draftNote} onChange={e=>setDraftNote(e.target.value)} className="rounded-[8px] text-xs" />
             </div>
-            <DialogFooter><Button variant="outline" onClick={()=>setDialogOpen(false)} className="rounded-[8px]">Cancel</Button><Button onClick={handleSave} disabled={!draftValue.trim()||busy} className="rounded-[8px]">{busy?"Saving…":"Save"}</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={()=>setDialogOpen(false)} className="rounded-[8px]">取消</Button><Button onClick={handleSave} disabled={!draftValue.trim()||busy} className="rounded-[8px]">{busy?"保存中…":"保存"}</Button></DialogFooter>
           </div>
         </div> : null}
       </Dialog>

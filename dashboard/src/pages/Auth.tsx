@@ -35,7 +35,7 @@ export default function AuthPage() {
         navigate("/dashboard/generate");
       } else {
         const data = await res.json().catch(() => null);
-        setError(data?.error || "Invalid token.");
+        setError(data?.error || "令牌无效.");
       }
     } catch {
       // offline fallback for dev
@@ -62,7 +62,7 @@ export default function AuthPage() {
               <Input
                 id="token"
                 type="password"
-                placeholder="Enter dashboard token"
+                placeholder="请输入面板令牌"
                 value={token}
                 onChange={(e) => setTokenValue(e.target.value)}
                 autoComplete="current-password"
