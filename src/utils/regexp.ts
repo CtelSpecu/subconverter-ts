@@ -32,7 +32,14 @@
  */
 export function regFind(pattern: string, text: string): boolean {
   try {
-    const re = new RegExp(pattern);
+    let pat = pattern;
+    let flags = "";
+    const flagMatch = pat.match(/^\(\?([imsx]+)\)/);
+    if (flagMatch) {
+      flags = flagMatch[1].toLowerCase().indexOf("i") !== -1 ? "i" : "";
+      pat = pat.slice(flagMatch[0].length);
+    }
+    const re = new RegExp(pat, flags);
     return re.test(text);
   } catch {
     return false;
@@ -51,9 +58,14 @@ export function regFind(pattern: string, text: string): boolean {
  */
 export function regMatch(pattern: string, text: string): boolean {
   try {
-    // Wrap in non-capturing group to preserve alternation precedence:
-    // e.g. pattern "a|b" → "^(?:a|b)$" not "^a|b$".
-    const re = new RegExp(`^(?:${pattern})$`, 'u');
+    let pat = pattern;
+    let flags = "u";
+    const flagMatch = pat.match(/^\(\?([imsx]+)\)/);
+    if (flagMatch) {
+      if (flagMatch[1].toLowerCase().indexOf("i") !== -1) flags += "i";
+      pat = pat.slice(flagMatch[0].length);
+    }
+    const re = new RegExp(`^(?:${pat})$`, flags);
     return re.test(text);
   } catch {
     return false;
@@ -73,7 +85,14 @@ export function regMatch(pattern: string, text: string): boolean {
  */
 export function regReplace(pattern: string, replacement: string, text: string): string {
   try {
-    const re = new RegExp(pattern, 'g');
+    let pat = pattern;
+    let flags = "g";
+    const flagMatch = pat.match(/^\(\?([imsx]+)\)/);
+    if (flagMatch) {
+      if (flagMatch[1].toLowerCase().indexOf("i") !== -1) flags += "i";
+      pat = pat.slice(flagMatch[0].length);
+    }
+    const re = new RegExp(pat, flags);
     return text.replace(re, replacement);
   } catch {
     return text;
@@ -88,7 +107,14 @@ export function regReplace(pattern: string, replacement: string, text: string): 
  */
 export function regValid(pattern: string): boolean {
   try {
-    new RegExp(pattern);
+    let pat = pattern;
+    let flags = "";
+    const flagMatch = pat.match(/^\(\?([imsx]+)\)/);
+    if (flagMatch) {
+      flags = flagMatch[1].toLowerCase().indexOf("i") !== -1 ? "i" : "";
+      pat = pat.slice(flagMatch[0].length);
+    }
+    new RegExp(pat, flags);
     return true;
   } catch {
     return false;

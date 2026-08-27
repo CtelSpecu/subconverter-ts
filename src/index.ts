@@ -2,6 +2,7 @@ import { webGet, flushCache } from './handler/webget.js';
 import { buildSettings, loadExternalConfig, applyOverlayToEnv, applyOverlayToSettings } from './handler/settings.js';
 import type { Env, ConfigOverlay } from './handler/settings.js';
 import type { Proxy, Settings } from './types.js';
+import { regValid, regFind } from './utils/regexp.js';
 import {
   checkAllowlist,
   requireAuth,
@@ -104,13 +105,25 @@ function mergeHeaders(base: Record<string, string>, extra: Record<string, string
 }
 
 function isValidRegex(pattern: string): boolean {
-  try {
-    // eslint-disable-next-line no-new
-    new RegExp(pattern);
-    return true;
-  } catch {
-    return false;
+  return regValid(pattern);
+}
+
+function splitPatterns(s: string): string[] {
+  const parts: string[] = [];
+  let cur = "";
+  let depth = 0;
+  for (const ch of s) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    if ((ch === "|" || ch === "`") && depth === 0) {
+      parts.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
   }
+  parts.push(cur);
+  return parts.map((p) => p.trim()).filter(Boolean);
 }
 
 function extractFetchUrl(raw: string): string {
@@ -138,23 +151,19 @@ function extractFetchUrl(raw: string): string {
 function applyIncludeExclude(nodes: Proxy[], include: string, exclude: string): Proxy[] {
   let out = nodes;
   if (exclude) {
-    const parts = exclude.split(/[|`]/).map((s) => s.trim()).filter(Boolean);
+    const parts = splitPatterns(exclude);
     out = out.filter((p) => {
       for (const pat of parts) {
-        try {
-          if (new RegExp(pat).test(p.remark)) return false;
-        } catch {}
+        if (regFind(pat, p.remark)) return false;
       }
       return true;
     });
   }
   if (include) {
-    const parts = include.split(/[|`]/).map((s) => s.trim()).filter(Boolean);
+    const parts = splitPatterns(include);
     out = out.filter((p) => {
       for (const pat of parts) {
-        try {
-          if (new RegExp(pat).test(p.remark)) return true;
-        } catch {}
+        if (regFind(pat, p.remark)) return true;
       }
       return false;
     });
@@ -203,15 +212,15 @@ async function handleSub(requestUrl: URL, env: Env, request: Request, prebuiltSe
     return { body: 'Invalid target!', headers: {}, status: 400 };
   }
 
-  // validate include/exclude regex
+  // validate include/exclude regex — split by | or ` but not inside parentheses (to support (?i)(a|b))
   if (include) {
-    for (const pat of include.split(/[|`]/)) {
+    for (const pat of splitPatterns(include)) {
       const t = pat.trim();
       if (t && !isValidRegex(t)) return { body: 'Invalid include regex!', headers: {}, status: 400 };
     }
   }
   if (exclude) {
-    for (const pat of exclude.split(/[|`]/)) {
+    for (const pat of splitPatterns(exclude)) {
       const t = pat.trim();
       if (t && !isValidRegex(t)) return { body: 'Invalid exclude regex!', headers: {}, status: 400 };
     }
