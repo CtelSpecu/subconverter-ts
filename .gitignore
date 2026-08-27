@@ -6,7 +6,6 @@ dashboard/node_modules/
 dashboard/dist/
 .env
 .env.local
-.dev.vars
 *.log
 .DS_Store
 coverage/
