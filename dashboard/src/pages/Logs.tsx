@@ -45,7 +45,7 @@ export default function LogsPage() {
   async function fetchLogs(p = page) {
     setLoading(true); setError(null);
     try {
-      const params = new URL搜索Params();
+      const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
       if (target !== "all") params.set("target", target);
       if (status !== "all") params.set("status", status);
@@ -76,7 +76,7 @@ export default function LogsPage() {
   async function handleExportCsv() {
     setBusy(true);
     try {
-      const params = new URL搜索Params();
+      const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
       if (target !== "all") params.set("target", target);
       params.set("export","csv");
@@ -162,7 +162,7 @@ export default function LogsPage() {
 
       <Card className="rounded-[8px] border shadow-none">
         <CardContent className="p-0">
-          {loading ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
+          {loading ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">加载中…</div> :
            logs.length===0 ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">暂无日志</div> :
            <Table>
              <TableHeader><TableRow><TableHead>时间</TableHead><TableHead>IP</TableHead><TableHead>目标</TableHead><TableHead>状态</TableHead><TableHead>耗时</TableHead><TableHead></TableHead></TableRow></TableHeader>

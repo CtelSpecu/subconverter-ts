@@ -205,7 +205,7 @@ export default function GeneratePage() {
           </div>
 
           <Collapsible defaultOpen={false} className="rounded-[8px]">
-            <CollapsibleTrigger>Advanced</CollapsibleTrigger>
+            <CollapsibleTrigger>高级设置</CollapsibleTrigger>
             <CollapsibleContent>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">

@@ -41,7 +41,7 @@ export default function CachePage() {
       const res = await fetch("/dashboard/api/cache/flush", { method:"POST", headers: authHeaders() });
       const body = await res.json().catch(()=>({}));
       if (!res.ok) throw new Error((body as any).error || `请求失败 ${res.status}`);
-      setStatus("Flushed");
+      setStatus("已清空");
       await fetchStats();
     } catch(e:any){ setStatus(e?.message||"清空失败"); }
     finally { setBusy(false); setFlushOpen(false); }
@@ -52,7 +52,7 @@ export default function CachePage() {
       const res = await fetch("/dashboard/api/cache/refresh", { method:"POST", headers: authHeaders() });
       const body = await res.json().catch(()=>({}));
       if (!res.ok) throw new Error((body as any).error || `请求失败 ${res.status}`);
-      setStatus("Refreshed");
+      setStatus("已刷新");
       await fetchStats();
     } catch(e:any){ setStatus(e?.message||"刷新失败"); }
     finally { setBusy(false); setRefreshOpen(false); }
@@ -69,28 +69,28 @@ export default function CachePage() {
         <Card className="rounded-[8px] border shadow-none">
           <CardHeader className="pb-2"><CardTitle className="text-sm">条目</CardTitle></CardHeader>
           <CardContent>
-            {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">Loading…</div> : error ? <div className="text-sm text-red-600">{error}</div> : <div className="text-2xl font-semibold">{stats?.entries ?? 0}</div>}
-            <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">KV CACHE keys (0–1000 sampled)</p>
+            {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">加载中…</div> : error ? <div className="text-sm text-red-600">{error}</div> : <div className="text-2xl font-semibold">{stats?.entries ?? 0}</div>}
+            <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">KV 缓存键（0–1000 采样）</p>
           </CardContent>
         </Card>
         <Card className="rounded-[8px] border shadow-none">
           <CardHeader className="pb-2"><CardTitle className="text-sm">命中率</CardTitle></CardHeader>
           <CardContent>
             {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">—</div> : <div className="text-2xl font-semibold">{stats?.hitRate==null ? "—" : `${stats.hitRate}%`}</div>}
-            <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">Not tracked (in-memory Map)</p>
+            <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">未统计（内存映射）</p>
           </CardContent>
         </Card>
         <Card className="rounded-[8px] border shadow-none">
           <CardHeader className="pb-2"><CardTitle className="text-sm">规则集</CardTitle></CardHeader>
           <CardContent>
             {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">—</div> : <div className="text-2xl font-semibold">{stats?.rulesets ?? 0}</div>}
-            <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">Cached remote configs</p>
+            <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">已缓存远程配置</p>
           </CardContent>
         </Card>
       </div>
 
       {status ? <div className="rounded-[8px] border bg-zinc-50 px-3 py-2 text-sm">{status} {timestamp ? `— ${new Date(timestamp).toLocaleString()}` : ""}</div> : null}
-      {timestamp && !status ? <div className="text-xs text-[rgb(0_0_0/44%)]">Updated {new Date(timestamp).toLocaleString()}</div> : null}
+      {timestamp && !status ? <div className="text-xs text-[rgb(0_0_0/44%)]">更新于 {new Date(timestamp).toLocaleString()}</div> : null}
 
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
@@ -119,7 +119,7 @@ export default function CachePage() {
 
       <AlertDialog open={flushOpen} onOpenChange={setFlushOpen}>
         <AlertDialogContent className="rounded-[8px]">
-          <AlertDialogHeader><AlertDialogTitle>清空 cache?</AlertDialogTitle><AlertDialogDescription> Clears in-memory and up to 1000 KV entries.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>清空 cache?</AlertDialogTitle><AlertDialogDescription> 将清理内存及最多 1000 条 KV。</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel className="rounded-[8px]">取消</AlertDialogCancel><AlertDialogAction onClick={handleFlush} className="rounded-[8px] bg-red-600 hover:bg-red-700">清空</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

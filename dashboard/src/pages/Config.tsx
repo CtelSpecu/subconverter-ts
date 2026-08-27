@@ -76,7 +76,7 @@ const FALLBACK_SNAPSHOT = {
   managedConfigPrefix: "http://127.0.0.1:25500",
   frontendAllowlist: "",
   retentionDays: 180,
-  _note: "Read-only buildSettings snapshot. Edits write to KV_ADMIN:config:overlay via allowlist.",
+  _note: "只读构建设置快照，修改写入 KV_ADMIN:config:overlay 白名单。",
 };
 
 export default function ConfigPage() {
@@ -128,7 +128,7 @@ export default function ConfigPage() {
           // ensure _note present
           if (!("_note" in merged)) {
             (merged as Record<string, unknown>)._note =
-              "Read-only buildSettings snapshot. Edits write to KV_ADMIN:config:overlay via allowlist.";
+              "只读构建设置快照，修改写入 KV_ADMIN:config:overlay 白名单。";
           }
           setSnapshotObj(merged);
         }
@@ -221,7 +221,7 @@ export default function ConfigPage() {
           if (Object.keys(merged).length > 0) {
             if (!("_note" in merged)) {
               (merged as Record<string, unknown>)._note =
-                "Read-only buildSettings snapshot. Edits write to KV_ADMIN:config:overlay via allowlist.";
+                "只读构建设置快照，修改写入 KV_ADMIN:config:overlay 白名单。";
             }
             setSnapshotObj(merged);
           }
@@ -263,7 +263,7 @@ export default function ConfigPage() {
             <Button variant="outline" onClick={handleCopy}>
               {copied ? "已复制" : "复制"}
             </Button>
-            <span className="text-xs text-[rgb(0_0_0/44%)]">Read-only. Overlay overrides at runtime with allowlist keys only.</span>
+            <span className="text-xs text-[rgb(0_0_0/44%)]">只读，覆盖在运行时通过白名单键生效。</span>
           </div>
         </CardContent>
       </Card>
@@ -356,8 +356,7 @@ export default function ConfigPage() {
           </div>
 
           <p className="text-xs leading-relaxed text-[rgb(0_0_0/44%)]">
-            Only keys in the allowlist are accepted. All other keys are rejected server-side. Snapshot remains the source of truth; overlay is merged at
-            request time.
+            仅白名单中的键会被接受，其它键将被服务端拒绝；快照为源，覆盖在请求时合并。
           </p>
         </CardContent>
       </Card>

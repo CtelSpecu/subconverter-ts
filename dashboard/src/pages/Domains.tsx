@@ -91,7 +91,7 @@ export default function DomainsPage() {
           <CardDescription>生成页使用的后端，来自环境变量 MANAGED_PREFIX。</CardDescription>
         </CardHeader>
         <CardContent className="flex gap-2">
-          <Input readOnly value={managedPrefix} placeholder={loading?"Loading…":"—"} className="rounded-[8px] font-mono text-xs" />
+          <Input readOnly value={managedPrefix} placeholder={loading?"加载中…":"—"} className="rounded-[8px] font-mono text-xs" />
           <Button variant="outline" onClick={handleCopy} className="shrink-0 rounded-[8px]">{copied?"已复制":"复制"}</Button>
         </CardContent>
       </Card>
@@ -99,12 +99,12 @@ export default function DomainsPage() {
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
           <CardTitle>白名单</CardTitle>
-          <CardDescription>{loading?"Loading…":`${allowlist.length} entries — empty allowlist means open (*). Non-empty enforces CORS + API check`}</CardDescription>
+          <CardDescription>{loading?"加载中…":`${allowlist.length} 条目 — 为空即放行（*），非空则严格校验 CORS 与接口`}</CardDescription>
         </CardHeader>
         <CardContent>
           {error ? <div className="mb-3 rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
           {actionError ? <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{actionError}</div> : null}
-          {loading ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
+          {loading ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">加载中…</div> :
           allowlist.length===0 ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">暂无域名，添加后将限制。</div> :
           <Table>
             <TableHeader><TableRow><TableHead>域名</TableHead><TableHead>备注</TableHead><TableHead>添加时间</TableHead><TableHead className="w-[80px]"></TableHead></TableRow></TableHeader>

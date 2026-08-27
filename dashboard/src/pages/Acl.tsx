@@ -18,10 +18,8 @@ export default function AclPage() {
   const [enableBlacklist, setEnableBlacklist] = useState(false);
   const [enableWhitelist, setEnableWhitelist] = useState(false);
   const [active, setActive] = useState<TabKey>("ip");
-  const [activeList, setActiveList] = useState<"black"|"white">("black");
-  const [data, setData] = useState<Record<TabKey, string[]>>({ ip:[], domain:[], ua:[], remark:[] });
+  const [data, setData] = useState<Record<TabKey, { black: string[]; white: string[] }>>({ ip:{black:[],white:[]}, domain:{black:[],white:[]}, ua:{black:[],white:[]}, remark:{black:[],white:[]} });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string|null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<string|null>(null);
   const [draftValue, setDraftValue] = useState("");
@@ -41,20 +39,26 @@ export default function AclPage() {
       setEnableBlacklist(!!j.blackEnabled);
       setEnableWhitelist(!!j.whiteEnabled);
       const types: TabKey[] = ["ip","domain","ua","remark"];
-      const next: Record<TabKey, string[]> = { ip:[], domain:[], ua:[], remark:[] };
+      const next: Record<TabKey, { black: string[]; white: string[] }> = { ip:{black:[],white:[]}, domain:{black:[],white:[]}, ua:{black:[],white:[]}, remark:{black:[],white:[]} };
       for (const t of types) {
-        const r = await fetch(`/dashboard/api/acl/${t}?list=${activeList}`, { headers: h });
-        if (r.ok) {
-          const dj = await r.json() as { entries: unknown[] };
-          const arr = Array.isArray(dj.entries) ? dj.entries.map(v=> String(v)) : [];
-          next[t]=arr;
+        const [rBlack, rWhite] = await Promise.all([
+          fetch(`/dashboard/api/acl/${t}?list=black`, { headers: h }),
+          fetch(`/dashboard/api/acl/${t}?list=white`, { headers: h }),
+        ]);
+        if (rBlack.ok) {
+          const dj = await rBlack.json() as { entries: unknown[] };
+          next[t].black = Array.isArray(dj.entries) ? dj.entries.map(v=> String(v)) : [];
+        }
+        if (rWhite.ok) {
+          const dj = await rWhite.json() as { entries: unknown[] };
+          next[t].white = Array.isArray(dj.entries) ? dj.entries.map(v=> String(v)) : [];
         }
       }
       setData(next);
     } catch(e:any){ setError(e?.message||"失败"); }
     finally { setLoading(false); }
   }
-  useEffect(()=>{ fetchAcl(); }, [activeList]);
+  useEffect(()=>{ fetchAcl(); }, []);
 
   async function toggleBlack(v:boolean) {
     setBusy(true);
@@ -75,8 +79,8 @@ export default function AclPage() {
     finally { setBusy(false); }
   }
 
-  const openAdd = (tab: TabKey) => { setDialogTab(tab); setDraftList(activeList); setEditing(null); setDraftValue(""); setDraftNote(""); setDialogOpen(true); };
-  const openEdit = (tab: TabKey, entry: string) => { setDialogTab(tab); setDraftList(activeList); setEditing(entry); setDraftValue(entry); setDraftNote(""); setDialogOpen(true); };
+  const openAdd = (tab: TabKey) => { setDialogTab(tab); setDraftList("black"); setEditing(null); setDraftValue(""); setDraftNote(""); setDialogOpen(true); };
+  const openEdit = (tab: TabKey, entry: string, list: "black"|"white") => { setDialogTab(tab); setDraftList(list); setEditing(entry); setDraftValue(entry); setDraftNote(""); setDialogOpen(true); };
   const handleSave = async () => {
     const v = draftValue.trim();
     if (!v) return;
@@ -99,34 +103,42 @@ export default function AclPage() {
     } catch(e:any){ setError(e?.message||"保存失败"); }
     finally { setBusy(false); }
   };
-  const handleDelete = async (tab: TabKey, value: string) => {
+  const handleDelete = async (tab: TabKey, value: string, list: "black"|"white") => {
     setBusy(true);
     try {
-      const res = await fetch(`/dashboard/api/acl/${tab}?list=${activeList}`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ value, action: "remove", list: activeList }) });
+      const res = await fetch(`/dashboard/api/acl/${tab}?list=${list}`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ value, action: "remove", list }) });
       if (!res.ok) throw new Error(`请求失败 ${res.status}`);
       await fetchAcl();
     } catch(e:any){ setError(e?.message||"删除失败"); }
     finally { setBusy(false); }
   };
 
-  const renderTable = (tab: TabKey, label: string) => (
+  const renderTable = (tab: TabKey, label: string) => {
+    const black = data[tab].black;
+    const white = data[tab].white;
+    const combined = [
+      ...black.map((v) => ({ value: v, list: "black" as const })),
+      ...white.map((v) => ({ value: v, list: "white" as const })),
+    ];
+    return (
     <Card className="rounded-[8px] border shadow-none">
       <CardHeader className="flex flex-row items-center justify-between">
-        <div><CardTitle className="text-sm">{label}</CardTitle><CardDescription className="text-xs">{data[tab].length} 条记录 · 当前查看{activeList==="black"?"黑名单":"白名单"}</CardDescription></div>
+        <div><CardTitle className="text-sm">{label}</CardTitle><CardDescription className="text-xs">黑名单 {black.length} 条 · 白名单 {white.length} 条</CardDescription></div>
         <Button size="sm" onClick={()=>openAdd(tab)} className="rounded-[8px] h-7 text-xs">添加</Button>
       </CardHeader>
       <CardContent>
         {loading ? <div className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">加载中…</div> :
-         data[tab].length===0 ? <div className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">暂无条目，请添加。</div> :
+         combined.length===0 ? <div className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">暂无条目，请添加。</div> :
          <Table>
-           <TableHeader><TableRow><TableHead>值</TableHead><TableHead className="w-[100px]"></TableHead></TableRow></TableHeader>
+           <TableHeader><TableRow><TableHead>值</TableHead><TableHead>名单</TableHead><TableHead className="w-[100px]"></TableHead></TableRow></TableHeader>
            <TableBody>
-             {data[tab].map((val)=>(
-               <TableRow key={val}>
-                 <TableCell className="font-mono text-xs break-all">{val}</TableCell>
+             {combined.map(({ value, list })=>(
+               <TableRow key={`${list}:${value}`}>
+                 <TableCell className="font-mono text-xs break-all">{value}</TableCell>
+                 <TableCell><span className={`text-xs px-2 py-0.5 rounded ${list==="black"?"bg-red-50 text-red-700":"bg-green-50 text-green-700"}`}>{list==="black"?"黑名单":"白名单"}</span></TableCell>
                  <TableCell className="flex gap-1">
-                   <Button variant="ghost" size="sm" onClick={()=>openEdit(tab, val)} className="h-7 text-xs">编辑</Button>
-                   <Button variant="ghost" size="sm" onClick={()=>handleDelete(tab, val)} disabled={busy} className="h-7 text-xs text-red-600 hover:bg-red-50">删除</Button>
+                   <Button variant="ghost" size="sm" onClick={()=>openEdit(tab, value, list)} className="h-7 text-xs">编辑</Button>
+                   <Button variant="ghost" size="sm" onClick={()=>handleDelete(tab, value, list)} disabled={busy} className="h-7 text-xs text-red-600 hover:bg-red-50">删除</Button>
                  </TableCell>
                </TableRow>
              ))}
@@ -135,7 +147,7 @@ export default function AclPage() {
       </CardContent>
     </Card>
   );
-
+  }
   return (
     <div className="space-y-6">
       <div>
@@ -148,11 +160,6 @@ export default function AclPage() {
           <label className="flex items-center gap-2 text-sm"><Switch checked={enableBlacklist} onCheckedChange={toggleBlack} disabled={busy} /> 黑名单 {enableBlacklist?"已启用":"已禁用"}</label>
           <label className="flex items-center gap-2 text-sm"><Switch checked={enableWhitelist} onCheckedChange={toggleWhite} disabled={busy} /> 白名单 {enableWhitelist?"已启用":"已禁用"}</label>
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-[rgb(0_0_0/44%)]">当前查看</span>
-            <select value={activeList} onChange={e=>setActiveList(e.target.value as any)} className="rounded-[8px] border px-2 py-1 text-xs">
-              <option value="black">黑名单</option>
-              <option value="white">白名单</option>
-            </select>
             <Button variant="ghost" size="sm" onClick={fetchAcl} disabled={loading} className="rounded-[8px]">刷新</Button>
           </div>
         </CardContent>
