@@ -30,6 +30,11 @@
 git clone https://github.com/CtelSpecu/subconverter-ts.git
 cd subconverter-ts
 npm install
+npm --prefix dashboard install
+
+cp .env.example .env
+cp .env.example .dev.vars
+# 编辑 .env / .dev.vars，填入 DASHBOARD_TOKEN 等（见下「配置」）
 
 # 本地开发（http://127.0.0.1:8787）
 npx wrangler dev --local
@@ -101,7 +106,29 @@ curl -G "http://127.0.0.1:8787/sub" \
 
 ## 配置
 
-`src/handler/settings.ts` `buildSettings(env)` 默认见 `spec.md Appendix C`，`env` 覆盖：
+`src/handler/settings.ts` `buildSettings(env)` 默认见 `spec.md Appendix C`，`env` 覆盖（优先 `.env` / `.dev.vars`，生产用 `wrangler secret`）：
+
+| `.env` / `wrangler.toml` / `env` | 对应 `pref` | 说明 |
+|--------------------------|-------------|------|
+| `API_MODE` | `api_mode` | `true` 则鉴权 |
+| `API_TOKEN` | `api_access_token` | `wrangler secret put API_TOKEN` |
+| `DASHBOARD_TOKEN` | — | 面板单密钥（`wrangler secret put DASHBOARD_TOKEN`） |
+| `FRONTEND_ALLOWLIST` | — | `,` 分隔，空即 `*`，见 `spec_ui §6.2` |
+| `DEFAULT_URL` | `default_url` | 默认订阅 |
+| `MANAGED_PREFIX` | `managed_config_prefix` |  |
+
+示例见 [`.env.example`](./.env.example)：
+
+```bash
+cp .env.example .env
+cp .env.example .dev.vars
+# 编辑 DASHBOARD_TOKEN 等
+```
+
+`http://172.17.0.1:8000` (Docker) / `http://127.0.0.1:8000` (host) 双 HOST 用于 `test/mocks`。
+
+## 项目结构
+
 ```
 .
 ├── spec.md                 # 重定向到 docs/spec.md（TS）· docs/spec-cpp.md（C++ 审计）
@@ -113,6 +140,7 @@ curl -G "http://127.0.0.1:8787/sub" \
 │   └── spec-cpp.md         # C++ 审计（68K，file:line）
 ├── wrangler.toml           # name/main/vars + [assets] dashboard + KV_ADMIN/CACHE + D1 DB_LOGS
 ├── schema.sql              # D1 logs 表（180d）
+├── .env.example            # 全部 env 示例（DASHBOARD_TOKEN 等）
 ├── dashboard/              # Vite+React+shadcn 面板 → assets/dashboard
 │   ├── src/pages/          # auth/generate/domains/acl/limits/logs/cache/config/debug (9)
 │   └── vite.config.ts      # outDir ../assets/dashboard
@@ -131,6 +159,7 @@ curl -G "http://127.0.0.1:8787/sub" \
     ├── unit.test.ts        # 20 单元
     └── REPORT.md
 
+```
 
 ## 测试
 
