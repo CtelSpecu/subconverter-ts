@@ -20,6 +20,7 @@ export default function AclPage() {
   const [active, setActive] = useState<TabKey>("ip");
   const [data, setData] = useState<Record<TabKey, { black: string[]; white: string[] }>>({ ip:{black:[],white:[]}, domain:{black:[],white:[]}, ua:{black:[],white:[]}, remark:{black:[],white:[]} });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string|null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<string|null>(null);
   const [draftValue, setDraftValue] = useState("");
