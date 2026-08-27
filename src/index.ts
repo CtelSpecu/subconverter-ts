@@ -449,6 +449,33 @@ function tokenMatches(requestUrl: URL, env: Env, strictEmpty = false): boolean {
   return token === expected;
 }
 
+async function logConversion(
+  env: Env,
+  request: Request,
+  target: string,
+  status: number,
+  duration: number,
+  nodes: number,
+  detail: string,
+): Promise<void> {
+  try {
+    const d1 = (env as unknown as Record<string, unknown>).DB_LOGS as D1Database | undefined;
+    if (!d1) return;
+    const ipRaw = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || request.headers.get('X-Real-IP') || '0.0.0.0';
+    const ip = ipRaw.replace(/(\d+\.\d+\.\d+)\.\d+/, '$1.0');
+    const now = Date.now();
+    const id = `${now}-${Math.random().toString(36).slice(2, 8)}`;
+    await d1
+      .prepare(
+        'INSERT OR IGNORE INTO logs (id, time, ip, target, nodes, cache, status, duration, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+      .bind(id, now, ip, target || '', nodes, 'miss', status, duration, detail || '', now)
+      .run()
+      .catch(() => {});
+  } catch {}
+}
+
+
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     try {
@@ -697,7 +724,16 @@ export default {
         if (isSurge2Clash) {
           if (!url.searchParams.get('target')) url.searchParams.set('target', 'clash');
         }
+        const start = Date.now();
         const result = await handleSub(url, effectiveEnv, request, effectiveSettings);
+        const duration = Date.now() - start;
+        const t = url.searchParams.get('target') || '';
+        let nodes = 0;
+        try {
+          if (t === 'clash' || t === 'clashr') nodes = (result.body.match(/^\s*- name:/gm) || []).length;
+          else nodes = result.body.split('\n').filter((l) => l.trim()).length;
+        } catch {}
+        _ctx.waitUntil(logConversion(effectiveEnv, request, t, result.status, duration, nodes, result.status === 200 ? 'ok' : 'error'));
         const h = mergeHeaders(baseCors, result.headers);
         if (!h['Content-Type']) h['Content-Type'] = 'text/plain;charset=utf-8';
         if (method === 'HEAD') {
