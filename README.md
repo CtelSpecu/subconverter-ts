@@ -20,9 +20,9 @@
 ## 面板
 
 - **路由** `/dashboard` → 重定向 `/generate`（已登录）/`/auth`（未登录），侧栏 240px + 顶栏 48px
-- **鉴权** 单密钥 `DASHBOARD_TOKEN`（`wrangler secret`），`Authorization: Bearer`，`401→/auth`
+- **鉴权** 单密钥 `DASHBOARD_TOKEN`（`wrangler secret` 或 `.dev.vars`），`Authorization: Bearer`，`401→/auth`
 - **白名单** `FRONTEND_ALLOWLIST`（`,` 分隔），空即放行（`ACAO *`），非空严格 `403`，`Vary: Origin`，`blocked_by_allowlist` 入日志
-- **构建** `dashboard/` → `vite build --outDir ../assets/dashboard`，`wrangler [assets]` 托管，`not_found_handling = "single-page-application"`
+- **双域** `sub.example.com`（API `/sub`）+ `dashboard.example.com`（面板）可同 Worker 双绑（`Add Custom Domain` 自动 CNAME 到 `workers.dev`，`MANAGED_PREFIX=https://sub.example.com`）
 
 ## 快速开始
 

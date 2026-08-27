@@ -496,6 +496,32 @@ npx wrangler deploy
 | Custom Domain | 生产 | 需域名托管于 Cloudflare，自动 TLS |
 | Routes | 高级 | 按路径路由至不同 Worker |
 
+### 7.3 双域 — 前端与 API 分离（可选）
+
+> **场景**：`sub.example.com` 专供 `GET /sub`（API），`dashboard.example.com` 专供 `/dashboard`（面板），同 Worker 双域共享，跨域由 `FRONTEND_ALLOWLIST` 控制。
+
+```bash
+# 控制台：Workers & Pages → subconverter-worker → Settings → Triggers → Add Custom Domain
+# 依次添加（自动签发证书，无需手动 CNAME）：
+#   sub.example.com
+#   dashboard.example.com
+# 验证：dig sub.example.com CNAME → subconverter-worker.churnie.workers.dev（自动）
+```
+
+| 角色 | 域名 | 用途 | `wrangler.toml` / `.dev.vars` |
+|------|------|------|------------------------------|
+| API | `sub.example.com` | `GET /sub` 订阅转换 | `MANAGED_PREFIX=https://sub.example.com` |
+| 面板 | `dashboard.example.com` | `/dashboard/*` 静态 + `/dashboard/api/*` | `FRONTEND_ALLOWLIST=https://dashboard.example.com,https://sub.example.com` |
+
+> **CNAME**：`Add Custom Domain` 已自动创建代理记录；手动 `CNAME` 到 `subconverter-worker.churnie.workers.dev` 亦可，但需开启云朵（橙云）以启用 TLS 与 `allowlist` 的 `Origin` 校验；裸 `CNAME` 到 `workers.dev` 而未托管于 Cloudflare 将无法签发证书。
+
+```bash
+# 本地验证（allowlist 空即放行，非空严格）
+curl -H "Origin: https://dashboard.example.com" "https://sub.example.com/sub?target=clash&url=..."
+# → 200 + Access-Control-Allow-Origin: https://dashboard.example.com
+curl -H "Origin: https://evil.com" "https://sub.example.com/sub?target=clash&url=..."
+# → 403 blocked_by_allowlist
+```
 ---
 
 ## 8. 可观测性
