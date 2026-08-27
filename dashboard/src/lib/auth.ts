@@ -2,18 +2,33 @@ export const TOKEN_KEY = "dashboard_token";
 
 export function getToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return (
+      localStorage.getItem(TOKEN_KEY) ??
+      localStorage.getItem("auth_token") ??
+      localStorage.getItem("DASHBOARD_TOKEN") ??
+      null
+    );
   } catch {
     return null;
   }
 }
 
 export function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // ignore
+  }
 }
 
 export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("DASHBOARD_TOKEN");
+  } catch {
+    // ignore
+  }
 }
 
 export function isAuthenticated(): boolean {

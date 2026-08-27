@@ -1,166 +1,135 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { getToken } from "@/lib/auth";
 
-type Ruleset = {
-  name: string;
-  type: number;
-  url: string;
-  count: number;
-  updatedAt: string;
-};
-
-const MOCK_RULESETS: Ruleset[] = [
-  { name: "reject", type: 1, url: "base/rules/reject.txt", count: 4821, updatedAt: "2026-08-26 08:00" },
-  { name: "proxy", type: 2, url: "base/rules/proxy.txt", count: 1240, updatedAt: "2026-08-26 08:00" },
-  { name: "direct", type: 3, url: "base/rules/direct.txt", count: 892, updatedAt: "2026-08-26 08:00" },
-  { name: "lancidr", type: 4, url: "base/rules/lancidr.txt", count: 312, updatedAt: "2026-08-26 08:00" },
-  { name: "cncidr", type: 5, url: "base/rules/cncidr.txt", count: 428, updatedAt: "2026-08-25 22:14" },
-  { name: "telegramcidr", type: 6, url: "base/rules/telegramcidr.txt", count: 67, updatedAt: "2026-08-25 22:14" },
-];
+function authHeaders(): Record<string,string> {
+  const t = getToken() || localStorage.getItem("dashboard_token") || "";
+  return t ? { Authorization: `Bearer ${t}`, "Content-Type":"application/json" } : { "Content-Type":"application/json" };
+}
 
 export default function CachePage() {
+  const [stats, setStats] = useState<{hitRate:number|null, entries:number, rulesets:number}|null>(null);
+  const [timestamp, setTimestamp] = useState<number|null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string|null>(null);
   const [flushOpen, setFlushOpen] = useState(false);
   const [refreshOpen, setRefreshOpen] = useState(false);
-  const [hitRate] = useState(68.4);
-  const [entries] = useState(1247);
   const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function handleFlush() {
-    setStatus("Cache flushed. Next request will miss and rebuild.");
-    setTimeout(() => setStatus(null), 3000);
+  async function fetchStats() {
+    setLoading(true); setError(null);
+    try {
+      const res = await fetch("/dashboard/api/cache", { headers: authHeaders() });
+      if (res.status===401) { window.location.href="/dashboard/auth"; return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { stats: {hitRate:number|null, entries:number, rulesets:number}, timestamp:number };
+      setStats(data.stats || { hitRate:null, entries:0, rulesets:0 });
+      setTimestamp(data.timestamp || Date.now());
+    } catch(e:any){ setError(e?.message||"Failed"); }
+    finally { setLoading(false); }
   }
+  useEffect(()=>{ fetchStats(); }, []);
 
-  function handleRefresh() {
-    setStatus("Rulesets refreshed from base/rules.");
-    setTimeout(() => setStatus(null), 3000);
+  async function handleFlush() {
+    setBusy(true); setStatus(null);
+    try {
+      const res = await fetch("/dashboard/api/cache/flush", { method:"POST", headers: authHeaders() });
+      const body = await res.json().catch(()=>({}));
+      if (!res.ok) throw new Error((body as any).error || `HTTP ${res.status}`);
+      setStatus("Flushed");
+      await fetchStats();
+    } catch(e:any){ setStatus(e?.message||"Flush failed"); }
+    finally { setBusy(false); setFlushOpen(false); }
+  }
+  async function handleRefresh() {
+    setBusy(true); setStatus(null);
+    try {
+      const res = await fetch("/dashboard/api/cache/refresh", { method:"POST", headers: authHeaders() });
+      const body = await res.json().catch(()=>({}));
+      if (!res.ok) throw new Error((body as any).error || `HTTP ${res.status}`);
+      setStatus("Refreshed");
+      await fetchStats();
+    } catch(e:any){ setStatus(e?.message||"Refresh failed"); }
+    finally { setBusy(false); setRefreshOpen(false); }
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold">Cache</h1>
-        <p className="text-sm text-[rgb(0_0_0/44%)]">Hit rate and ruleset management.</p>
+        <h1 className="text-lg font-semibold tracking-tight">Cache</h1>
+        <p className="text-sm text-[rgb(0_0_0/44%)]">In-memory + KV stats. Real data from /dashboard/api/cache.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Hit rate</CardTitle>
-            <CardDescription>Requests served from cache</CardDescription>
-          </CardHeader>
+        <Card className="rounded-[8px] border shadow-none">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Entries</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-semibold tracking-tight">{hitRate.toFixed(1)}%</span>
-              <span className="text-xs text-[rgb(0_0_0/44%)]">last 24h</span>
-            </div>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-              <div className="h-full rounded-full bg-zinc-900" style={{ width: `${hitRate}%` }} />
-            </div>
+            {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">Loading…</div> : error ? <div className="text-sm text-red-600">{error}</div> : <div className="text-2xl font-semibold">{stats?.entries ?? 0}</div>}
+            <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">KV CACHE keys (0–1000 sampled)</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Entries</CardTitle>
-            <CardDescription>Cached conversions</CardDescription>
-          </CardHeader>
+        <Card className="rounded-[8px] border shadow-none">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Hit rate</CardTitle></CardHeader>
           <CardContent>
-            <span className="text-2xl font-semibold tracking-tight">{entries.toLocaleString()}</span>
-            <p className="mt-1 text-xs text-[rgb(0_0_0/44%)]">TTL 60s per key</p>
+            {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">—</div> : <div className="text-2xl font-semibold">{stats?.hitRate==null ? "—" : `${stats.hitRate}%`}</div>}
+            <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">Not tracked (in-memory Map)</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Rulesets</CardTitle>
-            <CardDescription>Type 1–6 from base/rules</CardDescription>
-          </CardHeader>
+        <Card className="rounded-[8px] border shadow-none">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Rulesets</CardTitle></CardHeader>
           <CardContent>
-            <span className="text-2xl font-semibold tracking-tight">{MOCK_RULESETS.length}</span>
-            <p className="mt-1 text-xs text-[rgb(0_0_0/44%)]">Loaded at startup, refresh on demand</p>
+            {loading ? <div className="text-sm text-[rgb(0_0_0/44%)]">—</div> : <div className="text-2xl font-semibold">{stats?.rulesets ?? 0}</div>}
+            <p className="text-xs text-[rgb(0_0_0/44%)] mt-1">Cached remote configs</p>
           </CardContent>
         </Card>
       </div>
 
-      {status ? <div className="rounded-[8px] border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">{status}</div> : null}
+      {status ? <div className="rounded-[8px] border bg-zinc-50 px-3 py-2 text-sm">{status} {timestamp ? `— ${new Date(timestamp).toLocaleString()}` : ""}</div> : null}
+      {timestamp && !status ? <div className="text-xs text-[rgb(0_0_0/44%)]">Updated {new Date(timestamp).toLocaleString()}</div> : null}
 
-      <div className="flex gap-2">
-        <AlertDialog open={flushOpen} onOpenChange={setFlushOpen}>
-          <Button variant="outline" onClick={() => setFlushOpen(true)}>
-            Flush cache
-          </Button>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Flush cache?</AlertDialogTitle>
-              <AlertDialogDescription>All cached conversions will be evicted. Next requests will rebuild. This cannot be undone.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleFlush}>Flush</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <Card className="rounded-[8px] border shadow-none">
+        <CardHeader>
+          <CardTitle>Actions</CardTitle>
+          <CardDescription>Flush clears in-memory and up to 1000 KV keys. Refresh re-warms.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex gap-2">
+          <Button variant="outline" onClick={()=>setFlushOpen(true)} disabled={busy} className="rounded-[8px]">Flush</Button>
+          <Button onClick={()=>setRefreshOpen(true)} disabled={busy} className="rounded-[8px] bg-zinc-900 text-white hover:bg-zinc-800">Refresh</Button>
+          <Button variant="ghost" onClick={fetchStats} disabled={loading} className="rounded-[8px]">Reload</Button>
+        </CardContent>
+      </Card>
 
-        <AlertDialog open={refreshOpen} onOpenChange={setRefreshOpen}>
-          <Button variant="outline" onClick={() => setRefreshOpen(true)}>
-            Refresh rulesets
-          </Button>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Refresh rulesets?</AlertDialogTitle>
-              <AlertDialogDescription>Re-fetch rules from base/rules and reload type 1–6 sets. In-flight requests keep the prior snapshot.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleRefresh}>Refresh</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-
-      <Card>
+      <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
           <CardTitle>Rulesets</CardTitle>
-          <CardDescription>Type 1–6. List from base/rules.</CardDescription>
+          <CardDescription>Currently no per-ruleset breakdown; backend reports totals.</CardDescription>
         </CardHeader>
-        <CardContent className="pt-2">
+        <CardContent>
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Rules</TableHead>
-                <TableHead>Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {MOCK_RULESETS.map((r) => (
-                <TableRow key={r.name}>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{r.type}</Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[260px] truncate font-mono text-xs text-[rgb(0_0_0/64%)]">{r.url}</TableCell>
-                  <TableCell className="font-mono text-xs">{r.count.toLocaleString()}</TableCell>
-                  <TableCell className="font-mono text-xs text-[rgb(0_0_0/64%)]">{r.updatedAt}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>URL</TableHead><TableHead>Count</TableHead><TableHead>Updated</TableHead></TableRow></TableHeader>
+            <TableBody><TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">No breakdown — see /dashboard/api/cache for totals.</TableCell></TableRow></TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={flushOpen} onOpenChange={setFlushOpen}>
+        <AlertDialogContent className="rounded-[8px]">
+          <AlertDialogHeader><AlertDialogTitle>Flush cache?</AlertDialogTitle><AlertDialogDescription> Clears in-memory and up to 1000 KV entries.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel className="rounded-[8px]">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleFlush} className="rounded-[8px] bg-red-600 hover:bg-red-700">Flush</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={refreshOpen} onOpenChange={setRefreshOpen}>
+        <AlertDialogContent className="rounded-[8px]">
+          <AlertDialogHeader><AlertDialogTitle>Refresh cache?</AlertDialogTitle><AlertDialogDescription> Flush then re-warm.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel className="rounded-[8px]">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleRefresh} className="rounded-[8px]">Refresh</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

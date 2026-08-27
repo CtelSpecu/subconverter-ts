@@ -471,10 +471,14 @@ export default {
       const dashEnv = effectiveEnv as unknown as DashboardEnv;
 
       if (!isWorkersDev) {
-        if (isScd && (pathname === '/sub' || pathname === '/sub2clashr' || pathname === '/surge2clash' || pathname === '/version' || pathname === '/refreshrules' || pathname === '/flushcache')) {
+        const isDashboardPath = pathname === '/dashboard' || pathname.startsWith('/dashboard/');
+        const isApiPath = pathname === '/sub' || pathname === '/sub2clashr' || pathname === '/surge2clash' || pathname === '/version' || pathname === '/refreshrules' || pathname === '/flushcache';
+        // scd is dashboard-only
+        if (isScd && isApiPath) {
           return new Response('closed', { status: 403, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         }
-        if (isSub && (pathname === '/dashboard' || pathname.startsWith('/dashboard/'))) {
+        // sub is api-only
+        if (isSub && isDashboardPath) {
           return new Response('closed', { status: 403, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         }
         if (isSub && pathname === '/') {
@@ -482,6 +486,10 @@ export default {
         }
         if (isScd && pathname === '/') {
           return Response.redirect(new URL('/dashboard/', request.url).toString(), 302);
+        }
+        // any other custom host (e.g. subcoverter frontend) must not serve dashboard directly
+        if (!isScd && !isSub && isDashboardPath) {
+          return new Response('closed', { status: 403, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         }
       }
 

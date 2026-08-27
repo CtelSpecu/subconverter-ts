@@ -6,7 +6,7 @@ MANAGED_PREFIX=http://127.0.0.1:25500  # 生成的订阅前置域名（面板 Do
 # RETENTION_DAYS=180   # 日志保留天数（面板 Logs 可选 7/30/90/180/365，空=180）
 
 # — 前端域名白名单（逗号分隔，空即放行 *，非空严格 403）—
-FRONTEND_ALLOWLIST=https://sub.ctelspecu.hxcn.top,https://scd.ctelspecu.hxcn.top
+FRONTEND_ALLOWLIST=https://sub.ctelspecu.hxcn.top,https://scd.ctelspecu.hxcn.top,https://subcoverter.ctelspecu.hxcn.top,https://subconverter.ctelspecu.hxcn.top
 
 # — Dashboard 鉴权（单密钥，必填否则面板 401）—
 DASHBOARD_TOKEN=change-me-to-strong-random-32+chars  # 生产用 wrangler secret put DASHBOARD_TOKEN

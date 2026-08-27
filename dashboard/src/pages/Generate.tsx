@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getToken } from "@/lib/auth";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,8 +55,27 @@ export default function GeneratePage() {
   const [copied, setCopied] = useState(false);
   const [showCustomConfig, setShowCustomConfig] = useState(false);
 
+  const [backendBase, setBackendBase] = useState("https://sub.ctelspecu.hxcn.top");
+
+  useEffect(() => {
+    const t = getToken();
+    const h: Record<string,string> = {};
+    if (t) h.Authorization = `Bearer ${t}`;
+    fetch("/dashboard/api/domains", { headers: h })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: any) => { if (d?.managedPrefix) setBackendBase(String(d.managedPrefix).replace(/\/$/, "")); })
+      .catch(()=>{});
+    fetch("/dashboard/api/config", { headers: h })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: any) => {
+        const mp = d?.overlay?.MANAGED_PREFIX || d?.settings?.managedConfigPrefix;
+        if (mp) setBackendBase(String(mp).replace(/\/$/, ""));
+      })
+      .catch(()=>{});
+  }, []);
+
   function handleGenerate() {
-    const base = window.location.origin;
+    const base = backendBase || "https://sub.ctelspecu.hxcn.top";
     const params = new URLSearchParams();
 
     const urls = source
@@ -258,7 +278,7 @@ export default function GeneratePage() {
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
           <CardTitle>Output</CardTitle>
-          <CardDescription>Backend address is read-only. Copy the generated link.</CardDescription>
+          <CardDescription>Backend is <code className="font-mono text-xs">{backendBase}</code> (managedPrefix). Copy the generated link.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,72 +6,23 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Select, SelectItem } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { getToken } from "@/lib/auth";
 
+function authHeaders(): Record<string,string> {
+  const t = getToken() || localStorage.getItem("dashboard_token") || "";
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
 type LogRow = {
-  id: string;
-  time: string;
+  time: number;
   ip: string;
-  ipMasked: string;
   target: string;
-  nodes: number;
-  cache: "hit" | "miss";
   status: number;
   duration: number;
-  urlMasked: string;
-  subInfo: string;
-  upstream: string;
+  url?: string;
+  nodes?: number;
+  cache?: string;
+  [k:string]: any;
 };
-
-const MOCK_LOGS: LogRow[] = [
-  {
-    id: "1",
-    time: "2026-08-26 14:22:03",
-    ip: "203.0.113.42",
-    ipMasked: "203.0.113.***",
-    target: "clash",
-    nodes: 42,
-    cache: "hit",
-    status: 200,
-    duration: 87,
-    urlMasked: "https://sub.example.com/sub?target=clash&url=***&insert=false",
-    subInfo: "upload=12345678; download=98765432; total=107374182400; expire=1780000000",
-    upstream: "origin: https://raw.example.com/nodes.txt (42 nodes)",
-  },
-  {
-    id: "2",
-    time: "2026-08-26 13:58:11",
-    ip: "198.51.100.9",
-    ipMasked: "198.51.100.***",
-    target: "surge",
-    nodes: 18,
-    cache: "miss",
-    status: 200,
-    duration: 143,
-    urlMasked: "https://sub.example.com/sub?target=surge&url=***",
-    subInfo: "upload=0; download=0; total=53687091200; expire=1779000000",
-    upstream: "origin: https://raw.example.com/list.txt (18 nodes)",
-  },
-  {
-    id: "3",
-    time: "2026-08-26 13:42:44",
-    ip: "192.0.2.88",
-    ipMasked: "192.0.2.***",
-    target: "clash",
-    nodes: 0,
-    cache: "miss",
-    status: 403,
-    duration: 12,
-    urlMasked: "https://sub.example.com/sub?target=clash&url=***",
-    subInfo: "—",
-    upstream: "blocked_by_allowlist",
-  },
-];
-
-function statusVariant(status: number): "success" | "destructive" | "secondary" {
-  if (status >= 200 && status < 300) return "success";
-  if (status >= 400) return "destructive";
-  return "secondary";
-}
 
 export default function LogsPage() {
   const [search, setSearch] = useState("");
@@ -81,264 +32,171 @@ export default function LogsPage() {
   const [dateTo, setDateTo] = useState("");
   const [retention, setRetention] = useState("180");
   const [retentionSaved, setRetentionSaved] = useState("180");
+  const [logs, setLogs] = useState<LogRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string|null>(null);
   const [selected, setSelected] = useState<LogRow | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [blockedIps, setBlockedIps] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
 
-  const filtered = useMemo(() => {
-    return MOCK_LOGS.filter((r) => {
-      if (search) {
-        const q = search.toLowerCase();
-        if (!(r.ip.toLowerCase().includes(q) || r.target.toLowerCase().includes(q))) return false;
-      }
-      if (target !== "all" && r.target !== target) return false;
-      if (status !== "all" && String(r.status) !== status) return false;
-      if (dateFrom && r.time < dateFrom) return false;
-      if (dateTo && r.time > dateTo + " 23:59:59") return false;
-      return true;
-    });
-  }, [search, target, status, dateFrom, dateTo]);
-
+  async function fetchLogs(p = page) {
+    setLoading(true); setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("search", search.trim());
+      if (target !== "all") params.set("target", target);
+      if (status !== "all") params.set("status", status);
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
+      params.set("page", String(p));
+      params.set("limit", String(limit));
+      const res = await fetch(`/dashboard/api/logs?${params.toString()}`, { headers: authHeaders() });
+      if (res.status===401) { window.location.href="/dashboard/auth"; return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { logs: LogRow[], total:number, retention:number };
+      setLogs(Array.isArray(data.logs) ? data.logs : []);
+      setTotal(Number(data.total||0));
+      if (data.retention) { setRetention(String(data.retention)); setRetentionSaved(String(data.retention)); }
+    } catch(e:any){ setError(e?.message||"Failed"); }
+    finally { setLoading(false); }
+  }
+  useEffect(()=>{ fetchLogs(1); }, []);
+  // refetch when filters change via button
+  const filteredCount = total;
+  const hasMore = page * limit < total;
   const nextPurgeAt = useMemo(() => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + 1);
-    d.setUTCHours(3, 0, 0, 0);
-    return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
-  }, []);
+    const days = Number(retention)||180;
+    const d = new Date(Date.now() + days*86400000);
+    return d.toISOString().slice(0,10);
+  }, [retention]);
 
-  function handleExportCsv() {
-    const header = ["time", "ip", "target", "nodes", "cache", "status", "duration_ms"];
-    const rows = filtered.map((r) => [r.time, r.ipMasked, r.target, String(r.nodes), r.cache, String(r.status), String(r.duration)]);
-    const csv = [header, ...rows].map((row) => row.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `logs_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function handleExportCsv() {
+    setBusy(true);
+    try {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("search", search.trim());
+      if (target !== "all") params.set("target", target);
+      params.set("export","csv");
+      const res = await fetch(`/dashboard/api/logs?${params.toString()}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href=url; a.download="logs.csv"; a.click();
+      URL.revokeObjectURL(url);
+    } catch(e:any){ setError(e?.message||"Export failed"); }
+    finally { setBusy(false); }
   }
-
-  function openDetail(row: LogRow) {
-    setSelected(row);
-    setSheetOpen(true);
+  async function handleRetentionSave() {
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch("/dashboard/api/logs/retention", { method:"POST", headers: { ...authHeaders(), "Content-Type":"application/json" }, body: JSON.stringify({ days: Number(retention) }) });
+      const j = await res.json().catch(()=>({}));
+      if (!res.ok) throw new Error((j as any).error || `HTTP ${res.status}`);
+      setRetentionSaved(retention);
+      await fetchLogs(page);
+    } catch(e:any){ setError(e?.message||"Save failed"); }
+    finally { setBusy(false); }
   }
-
-  function handleBlockIp(ip: string) {
-    setBlockedIps((prev) => new Set(prev).add(ip));
+  function openDetail(row: LogRow) { setSelected(row); setSheetOpen(true); }
+  async function handleBlockIp(ip: string) {
+    // add to ACL IP blacklist
+    try {
+      const res = await fetch("/dashboard/api/acl/ip", { method:"POST", headers: { ...authHeaders(), "Content-Type":"application/json" }, body: JSON.stringify({ value: ip, action: "add" }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      alert(`Blocked ${ip}`);
+    } catch(e:any){ alert(e?.message||"Block failed"); }
+  }
+  function statusVariant(s:number): "success"|"destructive"|"secondary" {
+    if (s>=200 && s<300) return "success";
+    if (s>=400) return "destructive";
+    return "secondary";
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold">Logs</h1>
-        <p className="text-sm text-[rgb(0_0_0/44%)]">Access and block events. Retention default 180d.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight">Logs</h1>
+          <p className="text-sm text-[rgb(0_0_0/44%)]">Real D1 logs — search, filter, retention, export. Total {total}.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={()=>fetchLogs(page)} disabled={loading} className="rounded-[8px]">Refresh</Button>
+          <Button variant="outline" onClick={handleExportCsv} disabled={busy} className="rounded-[8px]">Export CSV</Button>
+        </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Search IP/target, status, date range, retention, export.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Input placeholder="Search IP or target" className="max-w-xs" value={search} onChange={(e) => setSearch(e.target.value)} />
-            <div className="w-[160px]">
-              <Select value={target} onValueChange={setTarget} aria-label="Target">
-                <SelectItem value="all">All targets</SelectItem>
-                <SelectItem value="clash">clash</SelectItem>
-                <SelectItem value="clashr">clashr</SelectItem>
-                <SelectItem value="surge">surge</SelectItem>
-                <SelectItem value="quan">quan</SelectItem>
-                <SelectItem value="loon">loon</SelectItem>
-                <SelectItem value="v2ray">v2ray</SelectItem>
-              </Select>
-            </div>
-            <div className="w-[140px]">
-              <Select value={status} onValueChange={setStatus} aria-label="Status">
-                <SelectItem value="all">All status</SelectItem>
-                <SelectItem value="200">200</SelectItem>
-                <SelectItem value="403">403</SelectItem>
-                <SelectItem value="500">500</SelectItem>
-              </Select>
-            </div>
-            <Button variant="outline" onClick={handleExportCsv}>
-              Export CSV
-            </Button>
+      {error ? <div className="rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+      <Card className="rounded-[8px] border shadow-none">
+        <CardHeader><CardTitle className="text-sm">Filters</CardTitle></CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-4">
+          <Input placeholder="search ip or target" value={search} onChange={e=>setSearch(e.target.value)} className="rounded-[8px]" />
+          <select value={target} onChange={e=>setTarget(e.target.value)} className="rounded-[8px] border px-2 py-2 text-sm">
+            <option value="all">All targets</option>
+            <option value="clash">clash</option>
+            <option value="surge">surge</option>
+            <option value="quan">quan</option>
+            <option value="loon">loon</option>
+            <option value="mixed">mixed</option>
+          </select>
+          <select value={status} onChange={e=>setStatus(e.target.value)} className="rounded-[8px] border px-2 py-2 text-sm">
+            <option value="all">All status</option>
+            <option value="200">200</option>
+            <option value="400">400</option>
+            <option value="500">500</option>
+          </select>
+          <Button onClick={()=>{ setPage(1); fetchLogs(1); }} className="rounded-[8px]">Search</Button>
+          <Input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} className="rounded-[8px]" />
+          <Input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} className="rounded-[8px]" />
+          <div className="flex gap-2">
+            <select value={retention} onChange={e=>setRetention(e.target.value)} className="rounded-[8px] border px-2 py-2 text-sm flex-1">
+              <option value="7">7d</option><option value="30">30d</option><option value="90">90d</option><option value="180">180d</option><option value="365">365d</option>
+            </select>
+            <Button variant="outline" onClick={handleRetentionSave} disabled={busy || retention===retentionSaved} className="rounded-[8px]">Save {retention} {retention===retentionSaved?"✓":""}</Button>
           </div>
-
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-[rgb(0_0_0/64%)]">Date range</label>
-              <div className="flex gap-2">
-                <Input type="date" className="w-[160px]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label="From date" />
-                <span className="self-center text-xs text-[rgb(0_0_0/44%)]">—</span>
-                <Input type="date" className="w-[160px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label="To date" />
-              </div>
-              <p className="text-[11px] text-[rgb(0_0_0/44%)]">Default 24h window when empty.</p>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-[rgb(0_0_0/64%)]">Retention</label>
-              <div className="w-[160px]">
-                <Select value={retention} onValueChange={setRetention} aria-label="Retention">
-                  <SelectItem value="7">7d</SelectItem>
-                  <SelectItem value="30">30d</SelectItem>
-                  <SelectItem value="90">90d</SelectItem>
-                  <SelectItem value="180">180d</SelectItem>
-                  <SelectItem value="365">365d</SelectItem>
-                </Select>
-              </div>
-            </div>
-
-            <Button variant="secondary" onClick={() => setRetentionSaved(retention)} className="h-9">
-              Apply retention
-            </Button>
-            {retention !== retentionSaved ? <span className="text-xs text-amber-700">Unsaved change</span> : null}
-          </div>
+          <div className="text-xs text-[rgb(0_0_0/44%)]">Next purge {nextPurgeAt} — retention auto deletes older logs.</div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>IP</TableHead>
-                <TableHead>Target</TableHead>
-                <TableHead>Nodes</TableHead>
-                <TableHead>Cache</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-[rgb(0_0_0/44%)]">
-                    No logs in this window.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((row) => (
-                  <TableRow key={row.id} className="cursor-pointer" onClick={() => openDetail(row)}>
-                    <TableCell className="font-mono text-xs">{row.time}</TableCell>
-                    <TableCell className="font-mono text-xs">{row.ipMasked}</TableCell>
-                    <TableCell>{row.target}</TableCell>
-                    <TableCell>{row.nodes}</TableCell>
-                    <TableCell>
-                      <Badge variant={row.cache === "hit" ? "secondary" : "outline"}>{row.cache}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{row.duration} ms</TableCell>
-                    <TableCell>
-                      <Button
-                        variant={blockedIps.has(row.ip) ? "secondary" : "outline"}
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleBlockIp(row.ip);
-                        }}
-                        disabled={blockedIps.has(row.ip)}
-                      >
-                        {blockedIps.has(row.ip) ? "Blocked" : "Block IP"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-          <p className="mt-3 text-xs text-[rgb(0_0_0/44%)]">Row click opens detail drawer. IPs are desensitized; full IP only visible to allow block action.</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Log retention</CardTitle>
-          <CardDescription>How long access logs are kept before scheduled purge.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-4">
-          <div className="w-[180px]">
-            <Select value={retentionSaved} onValueChange={(v) => { setRetention(v); setRetentionSaved(v); }} aria-label="Retention card">
-              <SelectItem value="7">7d</SelectItem>
-              <SelectItem value="30">30d</SelectItem>
-              <SelectItem value="90">90d</SelectItem>
-              <SelectItem value="180">180d</SelectItem>
-              <SelectItem value="365">365d</SelectItem>
-            </Select>
-          </div>
-          <div className="text-sm">
-            <span className="font-medium">Current {retentionSaved}d</span>
-            <span className="mx-2 text-[rgb(0_0_0/18%)]">·</span>
-            <span className="text-[rgb(0_0_0/64%)]">~{(Number(retentionSaved) * 0.42).toFixed(1)} MB estimated</span>
-            <span className="mx-2 text-[rgb(0_0_0/18%)]">·</span>
-            <span className="text-xs text-[rgb(0_0_0/44%)]">next purge {nextPurgeAt}</span>
+      <Card className="rounded-[8px] border shadow-none">
+        <CardContent className="p-0">
+          {loading ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
+           logs.length===0 ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">No logs</div> :
+           <Table>
+             <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>IP</TableHead><TableHead>Target</TableHead><TableHead>Status</TableHead><TableHead>Duration</TableHead><TableHead></TableHead></TableRow></TableHeader>
+             <TableBody>
+               {logs.map((row, idx)=>(
+                 <TableRow key={idx}>
+                   <TableCell className="text-xs font-mono">{row.time ? new Date(Number(row.time)).toLocaleString() : "—"}</TableCell>
+                   <TableCell className="text-xs font-mono">{row.ip || "—"}</TableCell>
+                   <TableCell className="text-xs">{row.target || "—"}</TableCell>
+                   <TableCell><Badge variant={statusVariant(Number(row.status))}>{row.status}</Badge></TableCell>
+                   <TableCell className="text-xs">{row.duration ?? "—"} ms</TableCell>
+                   <TableCell className="flex gap-1">
+                     <Button variant="ghost" size="sm" onClick={()=>openDetail(row)} className="h-7 text-xs">Detail</Button>
+                     {row.ip ? <Button variant="ghost" size="sm" onClick={()=>handleBlockIp(String(row.ip))} className="h-7 text-xs text-red-600">Block IP</Button> : null}
+                   </TableCell>
+                 </TableRow>
+               ))}
+             </TableBody>
+           </Table>}
+          <div className="flex items-center justify-between p-3 border-t">
+            <div className="text-xs text-[rgb(0_0_0/44%)]">Page {page} — {filteredCount} total {hasMore?"(more)":""}</div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page<=1} onClick={()=>{ const p=page-1; setPage(p); fetchLogs(p); }} className="rounded-[8px]">Prev</Button>
+              <Button variant="outline" size="sm" disabled={!hasMore} onClick={()=>{ const p=page+1; setPage(p); fetchLogs(p); }} className="rounded-[8px]">Next</Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Request detail</SheetTitle>
-            <SheetDescription>Desensitized. Raw subscription is never shown.</SheetDescription>
-          </SheetHeader>
-          {selected ? (
-            <div className="space-y-4 text-sm">
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-[rgb(0_0_0/64%)]">Time</div>
-                <div className="font-mono text-xs">{selected.time}</div>
-              </div>
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-[rgb(0_0_0/64%)]">IP (masked)</div>
-                <div className="font-mono text-xs">{selected.ipMasked}</div>
-              </div>
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-[rgb(0_0_0/64%)]">Request URL (masked)</div>
-                <div className="break-all rounded-[8px] border bg-zinc-50 p-3 font-mono text-xs">{selected.urlMasked}</div>
-              </div>
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-[rgb(0_0_0/64%)]">Sub info</div>
-                <div className="break-all rounded-[8px] border bg-zinc-50 p-3 font-mono text-xs">{selected.subInfo}</div>
-              </div>
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-[rgb(0_0_0/64%)]">Upstream</div>
-                <div className="break-all rounded-[8px] border bg-zinc-50 p-3 font-mono text-xs">{selected.upstream}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="rounded-[8px] border p-3">
-                  <div className="text-[rgb(0_0_0/44%)]">Target</div>
-                  <div className="font-medium">{selected.target}</div>
-                </div>
-                <div className="rounded-[8px] border p-3">
-                  <div className="text-[rgb(0_0_0/44%)]">Cache</div>
-                  <div className="font-medium">{selected.cache}</div>
-                </div>
-                <div className="rounded-[8px] border p-3">
-                  <div className="text-[rgb(0_0_0/44%)]">Status</div>
-                  <div className="font-medium">{selected.status}</div>
-                </div>
-                <div className="rounded-[8px] border p-3">
-                  <div className="text-[rgb(0_0_0/44%)]">Duration</div>
-                  <div className="font-medium">{selected.duration} ms</div>
-                </div>
-              </div>
-              <Button
-                variant={blockedIps.has(selected.ip) ? "secondary" : "destructive"}
-                onClick={() => handleBlockIp(selected.ip)}
-                disabled={blockedIps.has(selected.ip)}
-                className="w-full"
-              >
-                {blockedIps.has(selected.ip) ? "IP already blocked" : `Block ${selected.ipMasked}`}
-              </Button>
-            </div>
-          ) : null}
-        </SheetContent>
+        {sheetOpen && selected ? <SheetContent className="w-[480px] max-w-[90vw] overflow-auto">
+          <SheetHeader><SheetTitle>Log detail</SheetTitle><SheetDescription className="font-mono text-xs break-all">{JSON.stringify(selected, null, 2)}</SheetDescription></SheetHeader>
+          <pre className="mt-4 rounded-[8px] bg-zinc-50 p-3 font-mono text-xs overflow-auto">{JSON.stringify(selected, null, 2)}</pre>
+        </SheetContent> : null}
       </Sheet>
     </div>
   );
