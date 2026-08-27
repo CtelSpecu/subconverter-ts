@@ -25,45 +25,45 @@ type AllowlistEntry = {
 const ALLOWLIST: AllowlistEntry[] = [
   {
     key: "API_MODE",
-    label: "API Mode",
+    label: "接口模式",
     placeholder: "true",
-    description: "Enable API mode — true / false",
+    description: "启用接口模式 — 真 / 假",
     control: "select",
     options: ["true", "false"],
   },
   {
     key: "API_TOKEN",
-    label: "API Token",
+    label: "接口令牌",
     placeholder: "••••••••",
-    description: "Bearer token for /sub and dashboard auth",
+    description: "用于 /sub 与面板鉴权的 Bearer 令牌",
     control: "password",
   },
   {
     key: "DEFAULT_URL",
-    label: "Default URL",
-    placeholder: "https://example.com/sub.txt",
-    description: "Fallback subscription URL when ?url is empty",
+    label: "默认链接",
+    placeholder: "https://sub.ctelspecu.hxcn.top/sub.txt",
+    description: "当 ?url 为空时的备用订阅链接",
     control: "text",
   },
   {
     key: "MANAGED_PREFIX",
-    label: "Managed Prefix",
+    label: "管理前缀",
     placeholder: "https://sub.ctelspecu.hxcn.top",
-    description: "Prefix for write_managed_config / MANAGED-CONFIG",
+    description: "用于写入托管配置的前缀",
     control: "text",
   },
   {
     key: "FRONTEND_ALLOWLIST",
-    label: "Frontend 白名单",
-    placeholder: "https://example.com, https://app.example.com",
-    description: "Comma separated allowed origins (empty = allow all)",
+    label: "前端白名单",
+    placeholder: "https://sub.ctelspecu.hxcn.top, https://scd.ctelspecu.hxcn.top",
+    description: "逗号分隔的允许源（为空则放行全部）",
     control: "textarea",
   },
   {
     key: "RETENTION_DAYS",
-    label: "Retention Days",
+    label: "保留天数",
     placeholder: "180",
-    description: "Log retention window — 7 / 30 / 90 / 180 / 365",
+    description: "日志保留周期 — 7 / 30 / 90 / 180 / 365 天",
     control: "select",
     options: ["7", "30", "90", "180", "365"],
   },
@@ -246,7 +246,7 @@ export default function ConfigPage() {
       <Card>
         <CardHeader>
           <CardTitle>配置快照</CardTitle>
-          <CardDescription>JSON mono + copy. Edits write to KV_ADMIN:config:overlay.</CardDescription>
+          <CardDescription>JSON 等宽 + 复制，修改写入 KV_ADMIN:config:overlay。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {snapshotLoading ? (

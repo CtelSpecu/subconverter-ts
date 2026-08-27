@@ -163,7 +163,7 @@ export default function LogsPage() {
       <Card className="rounded-[8px] border shadow-none">
         <CardContent className="p-0">
           {loading ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
-           logs.length===0 ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">No logs</div> :
+           logs.length===0 ? <div className="p-8 text-center text-sm text-[rgb(0_0_0/44%)]">暂无日志</div> :
            <Table>
              <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>IP</TableHead><TableHead>Target</TableHead><TableHead>Status</TableHead><TableHead>Duration</TableHead><TableHead></TableHead></TableRow></TableHeader>
              <TableBody>

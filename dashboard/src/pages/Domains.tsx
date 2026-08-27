@@ -105,7 +105,7 @@ export default function DomainsPage() {
           {error ? <div className="mb-3 rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
           {actionError ? <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{actionError}</div> : null}
           {loading ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
-          allowlist.length===0 ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">No domains yet. 添加 one to restrict.</div> :
+          allowlist.length===0 ? <div className="rounded-[8px] border bg-zinc-50 p-8 text-center text-sm text-[rgb(0_0_0/44%)]">暂无域名，添加后将限制。</div> :
           <Table>
             <TableHeader><TableRow><TableHead>Domain</TableHead><TableHead>Remark</TableHead><TableHead>Added</TableHead><TableHead className="w-[80px]"></TableHead></TableRow></TableHeader>
             <TableBody>
@@ -139,7 +139,7 @@ export default function DomainsPage() {
       <Dialog open={!!deleteTarget} onOpenChange={(o)=>{ if(!o){setDeleteTarget(null); setDeleteConfirm(false);} }}>
         {deleteTarget ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={()=>{setDeleteTarget(null); setDeleteConfirm(false);}}>
           <div className="w-full max-w-md rounded-[8px] bg-white p-6 shadow-lg" onClick={e=>e.stopPropagation()}>
-            <DialogHeader><DialogTitle>删除 {deleteTarget.domain}?</DialogTitle><DialogDescription>This will remove the domain from allowlist.</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>删除 {deleteTarget.domain}?</DialogTitle><DialogDescription>这将从白名单中移除该域名。</DialogDescription></DialogHeader>
             <label className="mt-3 flex items-center gap-2 text-xs"><input type="checkbox" checked={deleteConfirm} onChange={e=>setDeleteConfirm(e.target.checked)} /> Confirm delete</label>
             <DialogFooter><Button variant="outline" onClick={()=>{setDeleteTarget(null); setDeleteConfirm(false);}} className="rounded-[8px]">取消</Button><Button variant="destructive" onClick={handleDelete} disabled={!deleteConfirm} className="rounded-[8px]">删除</Button></DialogFooter>
           </div>

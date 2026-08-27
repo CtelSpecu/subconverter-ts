@@ -91,9 +91,9 @@ export default function LimitsPage() {
           </CardContent>
         </Card>
         <Card className="rounded-[8px] border shadow-none">
-          <CardHeader><CardTitle className="text-sm">单域名</CardTitle><CardDescription>Concurrency / timeout</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="text-sm">单域名</CardTitle><CardDescription>并发 / 超时</CardDescription></CardHeader>
           <CardContent className="space-y-3">
-            <div><label className="text-xs">Concurrency</label><Input type="number" value={perDomainConcurrency} onChange={e=>setPerDomainConcurrency(Number(e.target.value))} className="rounded-[8px] mt-1" /></div>
+            <div><label className="text-xs">并发</label><Input type="number" value={perDomainConcurrency} onChange={e=>setPerDomainConcurrency(Number(e.target.value))} className="rounded-[8px] mt-1" /></div>
             <div><label className="text-xs">Timeout ms</label><Input type="number" value={perDomainTimeout} onChange={e=>setPerDomainTimeout(Number(e.target.value))} className="rounded-[8px] mt-1" /></div>
           </CardContent>
         </Card>

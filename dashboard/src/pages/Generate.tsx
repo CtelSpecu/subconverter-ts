@@ -201,7 +201,7 @@ export default function GeneratePage() {
                 </option>
               ))}
             </Select>
-            <p className="text-xs text-[rgb(0_0_0/44%)]">13+ formats: clash / surge / quanx / loon / surfboard / mixed / sssub / ss / ssd / singbox and more.</p>
+            <p className="text-xs text-[rgb(0_0_0/44%)]">支持 13+ 格式：clash / surge / quanx / loon / surfboard / mixed / sssub / ss / ssd / singbox 等</p>
           </div>
 
           <Collapsible defaultOpen={false} className="rounded-[8px]">
@@ -278,7 +278,7 @@ export default function GeneratePage() {
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
           <CardTitle>输出</CardTitle>
-          <CardDescription>Backend is <code className="font-mono text-xs">{backendBase}</code> (managedPrefix). 复制 the generated link.</CardDescription>
+          <CardDescription>后端为 <code className="font-mono text-xs">{backendBase}</code> （管理前缀），复制生成的链接。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">

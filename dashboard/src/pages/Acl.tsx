@@ -120,7 +120,7 @@ export default function AclPage() {
         {loading ? <div className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">Loading…</div> :
          data[tab].length===0 ? <div className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">No entries. 添加 one.</div> :
          <Table>
-           <TableHeader><TableRow><TableHead>Value</TableHead><TableHead className="w-[100px]"></TableHead></TableRow></TableHeader>
+           <TableHeader><TableRow><TableHead>值</TableHead><TableHead className="w-[100px]"></TableHead></TableRow></TableHeader>
            <TableBody>
              {data[tab].map((val)=>(
                <TableRow key={val}>

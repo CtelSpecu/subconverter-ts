@@ -18,23 +18,23 @@ const navGroups: { label: string; items: { to: string; label: string; icon: Reac
   {
     label: "转换",
     items: [
-      { to: "/dashboard/generate", label: "Generate", icon: FileText },
-      { to: "/dashboard/debug", label: "Debug", icon: Bug },
+      { to: "/dashboard/generate", label: "生成", icon: FileText },
+      { to: "/dashboard/debug", label: "调试", icon: Bug },
     ],
   },
   {
     label: "运维",
     items: [
-      { to: "/dashboard/domains", label: "Domains", icon: Globe },
-      { to: "/dashboard/acl", label: "ACL", icon: Shield },
-      { to: "/dashboard/limits", label: "Limits", icon: Gauge },
-      { to: "/dashboard/logs", label: "Logs", icon: ScrollText },
-      { to: "/dashboard/cache", label: "Cache", icon: Database },
+      { to: "/dashboard/domains", label: "域名管理", icon: Globe },
+      { to: "/dashboard/acl", label: "访问控制", icon: Shield },
+      { to: "/dashboard/limits", label: "限流", icon: Gauge },
+      { to: "/dashboard/logs", label: "日志", icon: ScrollText },
+      { to: "/dashboard/cache", label: "缓存", icon: Database },
     ],
   },
   {
     label: "系统",
-    items: [{ to: "/dashboard/config", label: "Config", icon: Settings }],
+    items: [{ to: "/dashboard/config", label: "配置", icon: Settings }],
   },
 ];
 
@@ -49,7 +49,7 @@ export function Layout() {
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded-[6px] bg-zinc-900" aria-hidden />
           <span className="text-sm font-semibold tracking-tight">subconverter-ts</span>
-          <span className="text-xs text-[rgb(0_0_0/44%)]">dashboard</span>
+          <span className="text-xs text-[rgb(0_0_0/44%)]">面板</span>
         </div>
         <div className="flex items-center gap-2">
           {token ? (
@@ -62,7 +62,7 @@ export function Layout() {
               }}
             >
               <LogOut className="mr-2 h-4 w-4" />
-              Sign out
+              退出登录
             </Button>
           ) : null}
         </div>

@@ -95,7 +95,7 @@ export default function CachePage() {
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
           <CardTitle>操作</CardTitle>
-          <CardDescription>清空 clears in-memory and up to 1000 KV keys. 刷新 re-warms.</CardDescription>
+          <CardDescription>清空 将清理内存及最多 1000 条 KV， 刷新 重新预热。</CardDescription>
         </CardHeader>
         <CardContent className="flex gap-2">
           <Button variant="outline" onClick={()=>setFlushOpen(true)} disabled={busy} className="rounded-[8px]">清空</Button>
@@ -107,12 +107,12 @@ export default function CachePage() {
       <Card className="rounded-[8px] border shadow-none">
         <CardHeader>
           <CardTitle>规则集</CardTitle>
-          <CardDescription>Currently no per-ruleset breakdown; backend reports totals.</CardDescription>
+          <CardDescription>暂无细分，详见后端总览。</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
-            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>URL</TableHead><TableHead>Count</TableHead><TableHead>Updated</TableHead></TableRow></TableHeader>
-            <TableBody><TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">No breakdown — see /dashboard/api/cache for totals.</TableCell></TableRow></TableBody>
+            <TableHeader><TableRow><TableHead>名称</TableHead><TableHead>类型</TableHead><TableHead>链接</TableHead><TableHead>数量</TableHead><TableHead>更新时间</TableHead></TableRow></TableHeader>
+            <TableBody><TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-[rgb(0_0_0/44%)]">暂无细分 — 请查看 /dashboard/api/cache 总览。</TableCell></TableRow></TableBody>
           </Table>
         </CardContent>
       </Card>

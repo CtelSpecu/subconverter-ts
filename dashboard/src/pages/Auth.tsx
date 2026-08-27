@@ -16,7 +16,7 @@ export default function AuthPage() {
     e.preventDefault();
     setError(null);
     if (!token.trim()) {
-      setError("Token is required.");
+      setError("请输入令牌。");
       return;
     }
     setLoading(true);
@@ -50,14 +50,14 @@ export default function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-white p-4">
       <Card className="w-full max-w-[360px] rounded-[8px] border shadow-none">
         <CardHeader className="pb-4">
-          <CardTitle className="text-[18px] font-semibold tracking-tight">Sign in</CardTitle>
-          <CardDescription className="text-sm">Admin token required</CardDescription>
+          <CardTitle className="text-[18px] font-semibold tracking-tight">登录</CardTitle>
+          <CardDescription className="text-sm">需要管理员令牌</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="token" className="text-sm font-medium leading-none">
-                Token
+                令牌
               </label>
               <Input
                 id="token"
@@ -79,7 +79,7 @@ export default function AuthPage() {
               className="w-full rounded-[8px] bg-zinc-900 text-white hover:bg-zinc-800"
               disabled={loading}
             >
-              {loading ? "Checking..." : "Continue"}
+              {loading ? "校验中…" : "继续"}
             </Button>
           </form>
         </CardContent>
