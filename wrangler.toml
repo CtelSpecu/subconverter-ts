@@ -1,0 +1,33 @@
+name = "subconverter-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "sub.ctelspecu.hxcn.top/*", zone_name = "hxcn.top" },
+  { pattern = "scd.ctelspecu.hxcn.top/*", zone_name = "hxcn.top" }
+]
+[vars]
+MANAGED_PREFIX = "https://sub.ctelspecu.hxcn.top"
+FRONTEND_ALLOWLIST = "https://sub.ctelspecu.hxcn.top,https://scd.ctelspecu.hxcn.top,https://subcoverter.ctelspecu.hxcn.top,https://subconverter.ctelspecu.hxcn.top"
+
+[observability]
+enabled = true
+
+[assets]
+directory = "./assets/dashboard"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[kv_namespaces]]
+binding = "ADMIN"
+id = "f1bb7670b39046ddb3b5c2e01625624e"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "2e6da862cdb7410eb3fb72c1624f2520"
+
+[[d1_databases]]
+binding = "DB_LOGS"
+database_name = "subconverter-logs"
+database_id = "23c4d8dd-0797-4c83-8ea8-becb6b196cb0"

@@ -12,5 +12,4 @@ dashboard/dist/
 coverage/
 .nyc_output/
 .cache/
-wrangler.toml
 .github/workflows/deploy.yml
